@@ -161,3 +161,4 @@ if (process.argv[1]?.endsWith('seed.ts')) {
   seedDatabase(db);
   console.log('HOLMIA SQLite database seeded successfully.');
 }
+

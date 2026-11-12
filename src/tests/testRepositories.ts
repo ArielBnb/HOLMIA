@@ -456,3 +456,4 @@ runAllTests().catch((err) => {
   console.error('\nERREUR DANS LA SUITE DE TESTS :', err);
   process.exit(1);
 });
+

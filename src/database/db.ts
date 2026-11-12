@@ -206,3 +206,4 @@ export function getDatabase(dbPath?: string): SQLiteDatabase {
   }
   return defaultInstance;
 }
+
