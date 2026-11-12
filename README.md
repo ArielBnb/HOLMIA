@@ -107,3 +107,14 @@ Ajouter les dépendances natives avec `npx expo install nom-du-paquet` et versio
 ## Validation initiale
 
 La préparation et les contrôles initiaux sont réalisés dans un environnement Linux distant. Cela ne certifie pas l'installation des outils ou du projet sur le PC Windows. Un lancement sur appareil reste nécessaire pour valider l'affichage natif.
+
+
+Contrôles du 12 novembre 2026 :
+
+- Node.js 24.22.1, npm 11.9.0 et Git 2.52.0 disponibles dans l'environnement distant.
+- `npm run lint` : réussi.
+- `npx expo-doctor` : 20/20 contrôles réussis.
+- Exports Metro Android et iOS : réussis.
+- Serveur Expo démarré en mode hors ligne ; endpoint `/status` : `packager-status:running`.
+- Vérification en ligne des versions : une requête a expiré via le proxy ; le contrôle hors ligne confirme les versions à jour.
+- Aucun appareil ni émulateur utilisé : affichage natif non vérifié.
