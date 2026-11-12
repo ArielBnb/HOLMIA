@@ -18,7 +18,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:repositories": "node --experimental-strip-types src/tests/testRepositories.ts",
+    "seed:sqlite": "node --experimental-strip-types src/database/seed.ts"
   },
   "private": true,
   "devDependencies": {

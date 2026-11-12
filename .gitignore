@@ -40,6 +40,11 @@ yarn-error.*
 /ios
 /android
 
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
 # Local environment and credentials
 .env
 .env.*
