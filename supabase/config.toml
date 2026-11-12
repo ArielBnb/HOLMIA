@@ -1,0 +1,3 @@
+[functions.username-login]
+# Login verifies username/password itself and rate-limits server-side.
+verify_jwt = false
