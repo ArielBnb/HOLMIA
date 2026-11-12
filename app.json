@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "HOLMIA",
+    "slug": "holmia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "backgroundColor": "#F6F5F0",
+    "primaryColor": "#183D35"
+  }
+}
