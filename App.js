@@ -1,5 +1,5 @@
-import WelcomeScreen from './src/screens/WelcomeScreen';
+import DatabaseTestScreen from './src/screens/DatabaseTestScreen';
 
 export default function App() {
-  return <WelcomeScreen />;
+  return <DatabaseTestScreen />;
 }
