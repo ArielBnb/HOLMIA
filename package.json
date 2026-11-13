@@ -20,6 +20,8 @@
     "ios": "expo start --ios",
     "lint": "eslint .",
     "test:repositories": "node --experimental-strip-types src/tests/testRepositories.ts",
+    "test:session": "node --experimental-strip-types src/tests/testSessionAndAccess.ts",
+    "test:all": "npm run test:repositories && npm run test:session",
     "seed:sqlite": "node --experimental-strip-types src/database/seed.ts"
   },
   "private": true,
