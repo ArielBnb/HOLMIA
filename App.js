@@ -1,5 +1,6 @@
-import DatabaseTestScreen from './src/screens/DatabaseTestScreen';
+import { AuthProvider } from './src/context/AuthContext';
+import AuthNavigator from './src/navigation/AuthNavigator';
 
 export default function App() {
-  return <DatabaseTestScreen />;
+  return <AuthProvider><AuthNavigator /></AuthProvider>;
 }
