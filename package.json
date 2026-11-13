@@ -18,10 +18,15 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:repositories": "node --experimental-strip-types src/tests/testRepositories.ts",
+    "test:session": "node --experimental-strip-types src/tests/testSessionAndAccess.ts",
+    "test:all": "npm run test:repositories && npm run test:session",
+    "seed:sqlite": "node --experimental-strip-types src/database/seed.ts"
   },
   "private": true,
   "devDependencies": {
+    "@types/react": "~19.3.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~58.0.4"
   }
