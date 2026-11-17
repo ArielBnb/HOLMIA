@@ -63,6 +63,7 @@ function RoleHome({ profile }) {
               <Text style={styles.profileName}>{profile.full_name || profile.username || 'User'}</Text>
               <Text style={styles.profileMeta}>Role: <Text style={{ fontWeight: '700', textTransform: 'capitalize' }}>{profile.role}</Text></Text>
               {profile.email ? <Text style={styles.profileMeta}>Email: {profile.email}</Text> : null}
+              {profile.username ? <Text style={styles.profileMeta}>Username: {profile.username}</Text> : null}
             </View>
 
             <Pressable
@@ -72,12 +73,6 @@ function RoleHome({ profile }) {
             >
               <Text style={styles.logoutBtnText}>Logout</Text>
             </Pressable>
-
-            {/* Quick link to raw catalogue test */}
-            <View style={{ marginTop: 24, flex: 1 }}>
-              <Text style={[styles.profileMeta, { fontWeight: '700', marginBottom: 8 }]}>Public Catalogue Preview:</Text>
-              <DatabaseTestScreen />
-            </View>
           </View>
         )}
       </View>

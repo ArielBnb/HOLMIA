@@ -28,6 +28,13 @@ from (values
 ) as d(id,title,description,price,listing_type,property_type,location,assigned)
 cross join (select id from auth.users where email='seller@holmia.example') s
 cross join (select id from auth.users where email='agent@holmia.example') a
-on conflict (id) do nothing;
+on conflict (id) do update set
+  title = excluded.title,
+  description = excluded.description,
+  price = excluded.price,
+  listing_type = excluded.listing_type,
+  property_type = excluded.property_type,
+  location = excluded.location,
+  status = excluded.status;
 commit;
 select status, count(*) from public.properties group by status;
