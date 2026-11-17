@@ -18,9 +18,12 @@ import {
 // ============================================================================
 const colors = {
   primary: '#183D35',
-  primaryLight: '#235A4E',
+  primaryHover: '#122D27',
+  primaryLight: '#E7EFEA',
   background: '#F6F5F0',
   cardBg: '#FFFFFF',
+  surfaceAlt: '#EEF2F0',
+  textPrimary: '#183D35',
   secondary: '#5D7068',
   border: '#DCE4E0',
   accentGreen: '#2E7D32',
