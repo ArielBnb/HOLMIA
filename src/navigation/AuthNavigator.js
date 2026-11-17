@@ -28,7 +28,7 @@ function RoleHome({ profile }) {
   const tabs = [
     { id: 'listings', label: 'My listings' },
     { id: 'add', label: 'Add' },
-    { id: 'offers', label: 'Offers' },
+    { id: 'lifecycle', label: 'Lifecycle' },
     { id: 'profile', label: 'Profile' },
   ];
 
@@ -50,7 +50,7 @@ function RoleHome({ profile }) {
             onSaved={() => setActiveTab('listings')}
           />
         )}
-        {activeTab === 'offers' && (
+        {activeTab === 'lifecycle' && (
           <PropertyLifecycleScreen
             currentSession={profile}
             onBack={() => setActiveTab('listings')}
