@@ -12,14 +12,14 @@ import { colors } from '../styles/theme';
 
 // Status display helpers
 const statusConfig = {
-  draft:       { label: 'Draft',        color: '#757575', bg: '#EEEEEE', icon: '📝' },
-  active:      { label: 'Active',       color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
-  under_offer: { label: 'Under Offer',  color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
-  sold:        { label: 'Sold',         color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
-  rented:      { label: 'Rented',       color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
+  draft:       { label: 'Brouillon',    color: '#757575', bg: '#EEEEEE', icon: '📝' },
+  active:      { label: 'Actif',        color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
+  under_offer: { label: 'Sous offre',   color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
+  sold:        { label: 'Vendu',        color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
+  rented:      { label: 'Loué',         color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
 };
 
-const listingTypeLabel = { sale: 'For Sale', rent: 'For Rent' };
+const listingTypeLabel = { sale: 'Vente', rent: 'Location' };
 
 export default function AgentPortfolioScreen({ currentSession }) {
   // Demo data simulating sessionService.getMyPortfolio() for agent
@@ -145,18 +145,18 @@ export default function AgentPortfolioScreen({ currentSession }) {
 
   const formatPrice = (price, listingType) => {
     if (listingType === 'rent') {
-      return `£${price.toLocaleString('en-GB')} / month`;
+      return `${price.toLocaleString('fr-FR')} €/mois`;
     }
-    return `£${price.toLocaleString('en-GB')}`;
+    return `${price.toLocaleString('fr-FR')} €`;
   };
 
   const filterButtons = [
-    { id: 'all', label: 'All', count: properties.length },
-    { id: 'draft', label: 'Drafts', count: statusCounts.draft || 0 },
-    { id: 'active', label: 'Active', count: statusCounts.active || 0 },
-    { id: 'under_offer', label: 'Under Offer', count: statusCounts.under_offer || 0 },
-    { id: 'sold', label: 'Sold', count: statusCounts.sold || 0 },
-    { id: 'rented', label: 'Rented', count: statusCounts.rented || 0 },
+    { id: 'all', label: 'Tous', count: properties.length },
+    { id: 'draft', label: 'Brouillons', count: statusCounts.draft || 0 },
+    { id: 'active', label: 'Actifs', count: statusCounts.active || 0 },
+    { id: 'under_offer', label: 'Sous offre', count: statusCounts.under_offer || 0 },
+    { id: 'sold', label: 'Vendus', count: statusCounts.sold || 0 },
+    { id: 'rented', label: 'Loués', count: statusCounts.rented || 0 },
   ];
 
   return (
@@ -168,34 +168,34 @@ export default function AgentPortfolioScreen({ currentSession }) {
         }
       >
         <Text style={styles.brand}>HOLMIA</Text>
-        <Text style={styles.heading}>Agent Portfolio</Text>
+        <Text style={styles.heading}>Portefeuille Agent</Text>
         <Text style={styles.subheading}>
-          Assigned Properties · {currentSession?.username || 'demo_agent'}
+          Biens assignés · {currentSession?.username || 'demo_agent'}
         </Text>
 
         {/* Summary Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{properties.length}</Text>
-            <Text style={styles.statLabel}>Total</Text>
+            <Text style={styles.statLabel}>Total biens</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { color: '#2E7D32' }]}>
               {statusCounts.active || 0}
             </Text>
-            <Text style={styles.statLabel}>Active</Text>
+            <Text style={styles.statLabel}>Actifs</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { color: '#E65100' }]}>
               {statusCounts.under_offer || 0}
             </Text>
-            <Text style={styles.statLabel}>Under Offer</Text>
+            <Text style={styles.statLabel}>Sous offre</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { color: '#757575' }]}>
               {statusCounts.draft || 0}
             </Text>
-            <Text style={styles.statLabel}>Drafts</Text>
+            <Text style={styles.statLabel}>Brouillons</Text>
           </View>
         </View>
 
@@ -231,7 +231,7 @@ export default function AgentPortfolioScreen({ currentSession }) {
         {filteredProperties.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>No properties in this category</Text>
+            <Text style={styles.emptyText}>Aucun bien dans cette catégorie</Text>
           </View>
         ) : (
           filteredProperties.map((prop) => {
@@ -270,7 +270,7 @@ export default function AgentPortfolioScreen({ currentSession }) {
                 </View>
 
                 <Text style={styles.dateText}>
-                  Updated: {new Date(prop.updated_at).toLocaleDateString('en-GB')}
+                  Mise à jour : {new Date(prop.updated_at).toLocaleDateString('fr-FR')}
                 </Text>
               </View>
             );
@@ -278,19 +278,19 @@ export default function AgentPortfolioScreen({ currentSession }) {
         )}
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>📋 Features — Week 3</Text>
+          <Text style={styles.infoCardTitle}>📋 Fonctionnalité — Semaine 3</Text>
           <Text style={styles.infoCardItem}>
-            • Agent views all assigned properties via{' '}
+            • L'agent voit tous ses biens assignés via{' '}
             <Text style={styles.bold}>sessionService.getMyPortfolio()</Text>
           </Text>
           <Text style={styles.infoCardItem}>
-            • Status filtering (Draft, Active, Under Offer, Sold, Rented)
+            • Filtrage par statut (Brouillon, Actif, Sous offre, Vendu, Loué)
           </Text>
           <Text style={styles.infoCardItem}>
-            • Seller information and last updated timestamp
+            • Informations vendeur et dernière mise à jour affichées
           </Text>
           <Text style={styles.infoCardItem}>
-            • Pull-to-refresh to reload portfolio
+            • Pull-to-refresh pour recharger le portefeuille
           </Text>
         </View>
       </ScrollView>

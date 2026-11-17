@@ -10,22 +10,22 @@ import {
 import { colors } from '../styles/theme';
 
 const statusConfig = {
-  none:        { label: 'Created',     color: '#607D8B', bg: '#ECEFF1', icon: '🆕' },
-  draft:       { label: 'Draft',       color: '#757575', bg: '#EEEEEE', icon: '📝' },
-  active:      { label: 'Active',      color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
-  under_offer: { label: 'Under Offer', color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
-  sold:        { label: 'Sold',        color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
-  rented:      { label: 'Rented',      color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
+  none:        { label: 'Création',    color: '#607D8B', bg: '#ECEFF1', icon: '🆕' },
+  draft:       { label: 'Brouillon',   color: '#757575', bg: '#EEEEEE', icon: '📝' },
+  active:      { label: 'Actif',       color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
+  under_offer: { label: 'Sous offre',  color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
+  sold:        { label: 'Vendu',       color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
+  rented:      { label: 'Loué',        color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
 };
 
 // Valid transitions diagram
 const transitionRules = [
-  { from: 'draft',       to: 'active',      desc: 'Activation by seller or agent' },
-  { from: 'active',      to: 'draft',       desc: 'Revert to draft' },
-  { from: 'active',      to: 'under_offer', desc: 'Offer accepted' },
-  { from: 'under_offer', to: 'active',      desc: 'Offer cancelled' },
-  { from: 'under_offer', to: 'sold',        desc: 'Sale finalized (sales only)' },
-  { from: 'under_offer', to: 'rented',      desc: 'Let agreed / finalized (rentals only)' },
+  { from: 'draft',       to: 'active',      desc: 'Activation par vendeur ou agent' },
+  { from: 'active',      to: 'draft',       desc: 'Retour en brouillon' },
+  { from: 'active',      to: 'under_offer', desc: 'Offre acceptée' },
+  { from: 'under_offer', to: 'active',      desc: 'Annulation de l\'offre' },
+  { from: 'under_offer', to: 'sold',        desc: 'Vente finalisée (vente uniquement)' },
+  { from: 'under_offer', to: 'rented',      desc: 'Location finalisée (location uniquement)' },
 ];
 
 export default function PropertyLifecycleScreen({ currentSession }) {
@@ -152,7 +152,7 @@ export default function PropertyLifecycleScreen({ currentSession }) {
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr);
-    return d.toLocaleDateString('en-GB', {
+    return d.toLocaleDateString('fr-FR', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -165,9 +165,9 @@ export default function PropertyLifecycleScreen({ currentSession }) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.brand}>HOLMIA</Text>
-        <Text style={styles.heading}>Property Lifecycle</Text>
+        <Text style={styles.heading}>Cycle de vie des biens</Text>
         <Text style={styles.subheading}>
-          Status History · {currentSession?.username || 'demo_agent'}
+          Historique des statuts · {currentSession?.username || 'demo_agent'}
         </Text>
 
         {/* View Mode Toggle */}
@@ -195,7 +195,7 @@ export default function PropertyLifecycleScreen({ currentSession }) {
                 viewMode === 'rules' && styles.toggleBtnTextActive,
               ]}
             >
-              📐 Rules
+              📐 Règles
             </Text>
           </Pressable>
         </View>
@@ -204,7 +204,7 @@ export default function PropertyLifecycleScreen({ currentSession }) {
           <>
             {/* Status Transition Rules */}
             <View style={styles.rulesCard}>
-              <Text style={styles.rulesTitle}>Allowed Status Transitions</Text>
+              <Text style={styles.rulesTitle}>Transitions de statut autorisées</Text>
               {transitionRules.map((rule, idx) => {
                 const fromSt = statusConfig[rule.from];
                 const toSt = statusConfig[rule.to];
@@ -227,40 +227,41 @@ export default function PropertyLifecycleScreen({ currentSession }) {
             </View>
 
             <View style={styles.constraintCard}>
-              <Text style={styles.constraintTitle}>⚠️ Business Constraints</Text>
+              <Text style={styles.constraintTitle}>⚠️ Contraintes métier</Text>
               <Text style={styles.constraintItem}>
-                • <Text style={styles.bold}>Sold</Text> and{' '}
-                <Text style={styles.bold}>Rented</Text> are terminal states (irreversible)
+                • <Text style={styles.bold}>Sold</Text> et{' '}
+                <Text style={styles.bold}>Rented</Text> sont des statuts terminaux
+                (irréversibles)
               </Text>
               <Text style={styles.constraintItem}>
-                • A property for <Text style={styles.bold}>Sale</Text> cannot transition to{' '}
-                <Text style={styles.bold}>Rented</Text>
+                • Un bien en <Text style={styles.bold}>Vente</Text> ne peut pas passer à{' '}
+                <Text style={styles.bold}>Loué</Text>
               </Text>
               <Text style={styles.constraintItem}>
-                • A property for <Text style={styles.bold}>Rent</Text> cannot transition to{' '}
-                <Text style={styles.bold}>Sold</Text>
+                • Un bien en <Text style={styles.bold}>Location</Text> ne peut pas passer à{' '}
+                <Text style={styles.bold}>Vendu</Text>
               </Text>
               <Text style={styles.constraintItem}>
-                • Price and property type are{' '}
-                <Text style={styles.bold}>locked once Under Offer</Text>
+                • Le prix et le type sont{' '}
+                <Text style={styles.bold}>verrouillés après Under Offer</Text>
               </Text>
             </View>
 
             {/* Visual State Diagram */}
             <View style={styles.diagramCard}>
-              <Text style={styles.diagramTitle}>📊 State Diagram</Text>
+              <Text style={styles.diagramTitle}>📊 Diagramme d'états</Text>
               <View style={styles.diagram}>
                 {/* Row 1: Draft -> Active */}
                 <View style={styles.diagramRow}>
                   <View style={[styles.diagramNode, { backgroundColor: statusConfig.draft.bg }]}>
                     <Text style={{ color: statusConfig.draft.color, fontWeight: '700' }}>
-                      {statusConfig.draft.icon} Draft
+                      {statusConfig.draft.icon} Brouillon
                     </Text>
                   </View>
                   <Text style={styles.diagramArrow}>⇄</Text>
                   <View style={[styles.diagramNode, { backgroundColor: statusConfig.active.bg }]}>
                     <Text style={{ color: statusConfig.active.color, fontWeight: '700' }}>
-                      {statusConfig.active.icon} Active
+                      {statusConfig.active.icon} Actif
                     </Text>
                   </View>
                 </View>
@@ -271,7 +272,7 @@ export default function PropertyLifecycleScreen({ currentSession }) {
                 <View style={styles.diagramRow}>
                   <View style={[styles.diagramNode, { backgroundColor: statusConfig.under_offer.bg }]}>
                     <Text style={{ color: statusConfig.under_offer.color, fontWeight: '700' }}>
-                      {statusConfig.under_offer.icon} Under Offer
+                      {statusConfig.under_offer.icon} Sous offre
                     </Text>
                   </View>
                 </View>
@@ -285,12 +286,12 @@ export default function PropertyLifecycleScreen({ currentSession }) {
                 <View style={styles.diagramRow}>
                   <View style={[styles.diagramNode, { backgroundColor: statusConfig.sold.bg }]}>
                     <Text style={{ color: statusConfig.sold.color, fontWeight: '700' }}>
-                      {statusConfig.sold.icon} Sold
+                      {statusConfig.sold.icon} Vendu
                     </Text>
                   </View>
                   <View style={[styles.diagramNode, { backgroundColor: statusConfig.rented.bg }]}>
                     <Text style={{ color: statusConfig.rented.color, fontWeight: '700' }}>
-                      {statusConfig.rented.icon} Rented
+                      {statusConfig.rented.icon} Loué
                     </Text>
                   </View>
                 </View>
@@ -309,7 +310,7 @@ export default function PropertyLifecycleScreen({ currentSession }) {
         ) : (
           <>
             {/* Property Selector */}
-            <Text style={styles.sectionLabel}>Select a property:</Text>
+            <Text style={styles.sectionLabel}>Sélectionner un bien :</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -342,7 +343,7 @@ export default function PropertyLifecycleScreen({ currentSession }) {
             <View style={styles.timelineCard}>
               <Text style={styles.timelineTitle}>{selectedProperty.title}</Text>
               <Text style={styles.timelineSubtitle}>
-                {selectedProperty.listing_type === 'sale' ? 'For Sale' : 'For Rent'} · Current Status:{' '}
+                {selectedProperty.listing_type === 'sale' ? 'Vente' : 'Location'} · Statut actuel :{' '}
                 {statusConfig[selectedProperty.status].icon}{' '}
                 {statusConfig[selectedProperty.status].label}
               </Text>
@@ -382,7 +383,7 @@ export default function PropertyLifecycleScreen({ currentSession }) {
                         )}
 
                         <Text style={styles.timelineNotes}>{entry.notes}</Text>
-                        <Text style={styles.timelineActor}>By: {entry.changed_by}</Text>
+                        <Text style={styles.timelineActor}>Par : {entry.changed_by}</Text>
                       </View>
                     </View>
                   );
@@ -393,19 +394,19 @@ export default function PropertyLifecycleScreen({ currentSession }) {
         )}
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>📋 Features — Week 3</Text>
+          <Text style={styles.infoCardTitle}>📋 Fonctionnalité — Semaine 3</Text>
           <Text style={styles.infoCardItem}>
-            • Complete status audit history via{' '}
+            • Historique complet des transitions via{' '}
             <Text style={styles.bold}>propertyRepo.getStatusHistory()</Text>
           </Text>
           <Text style={styles.infoCardItem}>
-            • Visual timeline with timestamps, actors, and transition notes
+            • Timeline visuelle avec dates, acteurs et notes
           </Text>
           <Text style={styles.infoCardItem}>
-            • State diagram with allowed transitions
+            • Diagramme d'états avec transitions autorisées
           </Text>
           <Text style={styles.infoCardItem}>
-            • Enforced business constraints: terminal states, field immutability
+            • Contraintes métier : statuts terminaux, verrouillage de champs
           </Text>
         </View>
       </ScrollView>

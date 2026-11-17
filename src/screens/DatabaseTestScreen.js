@@ -18,7 +18,7 @@ export default function DatabaseTestScreen() {
       setCheckedAt(new Date().toLocaleTimeString());
     } catch (failure) {
       setProperties([]);
-      setError(failure.message || 'Connection failed.');
+      setError(failure.message || 'Connexion impossible.');
     } finally { setLoading(false); }
   }, []);
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function DatabaseTestScreen() {
     getProperties().then((data) => {
       if (mounted) { setProperties(data); setCheckedAt(new Date().toLocaleTimeString()); }
     }).catch((failure) => {
-      if (mounted) setError(failure.message || 'Connection failed.');
+      if (mounted) setError(failure.message || 'Connexion impossible.');
     }).finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
   }, []);
@@ -39,20 +39,20 @@ export default function DatabaseTestScreen() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={<View>
           <Text style={styles.brand}>HOLMIA</Text>
-          <Text style={styles.heading}>Property Catalogue</Text>
+          <Text style={styles.heading}>Annonces de démonstration</Text>
           <Text style={styles.meta}>Mission 2 · Supabase</Text>
           {loading ? <ActivityIndicator color={colors.primary} /> :
-            <Text accessibilityRole="status" style={styles.meta}>{error || `${properties.length} active listings · connection verified at ${checkedAt}`}</Text>}
+            <Text accessibilityRole="status" style={styles.meta}>{error || `${properties.length} annonces actives · connexion vérifiée à ${checkedAt}`}</Text>}
           <Pressable accessibilityRole="button" onPress={load} disabled={loading} style={styles.button}>
-            <Text style={styles.buttonText}>Refresh catalogue</Text>
+            <Text style={styles.buttonText}>Actualiser les données</Text>
           </Pressable>
         </View>}
-        ListEmptyComponent={!loading && !error ? <Text>No active listings found.</Text> : null}
+        ListEmptyComponent={!loading && !error ? <Text>Aucune annonce active accessible.</Text> : null}
         renderItem={({ item }) => <View style={styles.card}>
-          <Text style={styles.meta}>{item.listing_type === 'sale' ? 'FOR SALE' : 'FOR RENT'} · {item.property_type}</Text>
+          <Text style={styles.meta}>{item.listing_type === 'sale' ? 'VENTE' : 'LOCATION'} · {item.property_type}</Text>
           <Text style={styles.title}>{item.title}</Text>
           <Text style={styles.meta}>{item.location}</Text>
-          <Text style={styles.price}>£{Number(item.price).toLocaleString('en-GB')}{item.listing_type === 'rent' ? ' / month' : ''}</Text>
+          <Text style={styles.price}>{Number(item.price).toLocaleString('fr-FR')} €{item.listing_type === 'rent' ? ' / mois' : ''}</Text>
           <Text style={styles.description}>{item.description}</Text>
         </View>}
       />

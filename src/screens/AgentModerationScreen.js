@@ -13,14 +13,14 @@ import {
 import { colors } from '../styles/theme';
 
 const statusConfig = {
-  draft:       { label: 'Draft',       color: '#757575', bg: '#EEEEEE', icon: '📝' },
-  active:      { label: 'Active',      color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
-  under_offer: { label: 'Under Offer', color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
-  sold:        { label: 'Sold',        color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
-  rented:      { label: 'Rented',      color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
+  draft:       { label: 'Brouillon',  color: '#757575', bg: '#EEEEEE', icon: '📝' },
+  active:      { label: 'Actif',      color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
+  under_offer: { label: 'Sous offre', color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
+  sold:        { label: 'Vendu',      color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
+  rented:      { label: 'Loué',       color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
 };
 
-const listingTypeLabel = { sale: 'For Sale', rent: 'For Rent' };
+const listingTypeLabel = { sale: 'Vente', rent: 'Location' };
 
 export default function AgentModerationScreen({ currentSession }) {
   const [properties, setProperties] = useState([]);
@@ -115,16 +115,16 @@ export default function AgentModerationScreen({ currentSession }) {
 
   const handleSaveChanges = () => {
     if (!editForm.title || editForm.title.trim().length < 3) {
-      setFeedbackMessage('Error: Title must be at least 3 characters.');
+      setFeedbackMessage('Erreur : Le titre doit comporter au moins 3 caractères.');
       return;
     }
     const price = parseFloat(editForm.price);
     if (isNaN(price) || price <= 0) {
-      setFeedbackMessage('Error: Price must be greater than 0.');
+      setFeedbackMessage('Erreur : Le prix doit être supérieur à 0.');
       return;
     }
     if (!editForm.location || editForm.location.trim().length === 0) {
-      setFeedbackMessage('Error: Location cannot be empty.');
+      setFeedbackMessage('Erreur : La localisation ne peut pas être vide.');
       return;
     }
 
@@ -152,12 +152,12 @@ export default function AgentModerationScreen({ currentSession }) {
       location: editForm.location.trim(),
       property_type: editForm.property_type.trim(),
     });
-    setFeedbackMessage('✅ Changes saved successfully!');
+    setFeedbackMessage('✅ Modifications enregistrées avec succès !');
   };
 
   const handleActivateDraft = (prop) => {
     if (prop.status !== 'draft') {
-      setFeedbackMessage('Error: Only draft listings can be activated.');
+      setFeedbackMessage('Erreur : Seuls les brouillons peuvent être activés.');
       return;
     }
 
@@ -173,18 +173,18 @@ export default function AgentModerationScreen({ currentSession }) {
       if (selectedProperty && selectedProperty.id === prop.id) {
         setSelectedProperty({ ...selectedProperty, status: 'active' });
       }
-      setFeedbackMessage(`✅ "${prop.title}" activated successfully!`);
+      setFeedbackMessage(`✅ "${prop.title}" activé avec succès !`);
     };
 
     if (Platform.OS === 'web') {
       confirmActivation();
     } else {
       Alert.alert(
-        'Activate Listing?',
-        `Confirm activation of "${prop.title}"?`,
+        'Activer l\'annonce ?',
+        `Confirmer l'activation de "${prop.title}" ?`,
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Activate', onPress: confirmActivation },
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Activer', onPress: confirmActivation },
         ]
       );
     }
@@ -192,7 +192,7 @@ export default function AgentModerationScreen({ currentSession }) {
 
   const handleDeactivate = (prop) => {
     if (prop.status !== 'active') {
-      setFeedbackMessage('Error: Only active listings can be reverted to draft.');
+      setFeedbackMessage('Erreur : Seules les annonces actives peuvent être désactivées.');
       return;
     }
 
@@ -207,7 +207,7 @@ export default function AgentModerationScreen({ currentSession }) {
     if (selectedProperty && selectedProperty.id === prop.id) {
       setSelectedProperty({ ...selectedProperty, status: 'draft' });
     }
-    setFeedbackMessage(`📝 "${prop.title}" reverted to draft.`);
+    setFeedbackMessage(`📝 "${prop.title}" repassé en brouillon.`);
   };
 
   // ============ DETAIL / EDIT VIEW ============
@@ -219,11 +219,11 @@ export default function AgentModerationScreen({ currentSession }) {
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
           <Pressable onPress={handleBackToList} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back to list</Text>
+            <Text style={styles.backButtonText}>← Retour à la liste</Text>
           </Pressable>
 
           <Text style={styles.brand}>HOLMIA</Text>
-          <Text style={styles.heading}>Moderate Listing</Text>
+          <Text style={styles.heading}>Modérer l'annonce</Text>
 
           <View style={[styles.statusBadgeLg, { backgroundColor: st.bg }]}>
             <Text style={styles.statusIconLg}>{st.icon}</Text>
@@ -233,14 +233,15 @@ export default function AgentModerationScreen({ currentSession }) {
           {isLocked && (
             <View style={styles.warningBanner}>
               <Text style={styles.warningText}>
-                🔒 This property is marked « {st.label} ». Price, property type, and transaction mode are locked.
+                🔒 Ce bien est en statut « {st.label} ». Le prix, le type et le mode
+                (vente/location) sont verrouillés.
               </Text>
             </View>
           )}
 
           {/* Edit Form */}
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Title</Text>
+            <Text style={styles.label}>Titre</Text>
             <TextInput
               style={styles.input}
               value={editForm.title}
@@ -263,7 +264,7 @@ export default function AgentModerationScreen({ currentSession }) {
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>
-              Price ({selectedProperty.listing_type === 'rent' ? '£/month' : '£'})
+              Prix ({selectedProperty.listing_type === 'rent' ? '€/mois' : '€'})
               {isLocked ? ' 🔒' : ''}
             </Text>
             <TextInput
@@ -276,7 +277,7 @@ export default function AgentModerationScreen({ currentSession }) {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Location</Text>
+            <Text style={styles.label}>Localisation</Text>
             <TextInput
               style={styles.input}
               value={editForm.location}
@@ -287,7 +288,7 @@ export default function AgentModerationScreen({ currentSession }) {
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>
-              Property Type{isLocked ? ' 🔒' : ''}
+              Type de bien{isLocked ? ' 🔒' : ''}
             </Text>
             <TextInput
               style={[styles.input, isLocked && styles.inputLocked]}
@@ -298,7 +299,7 @@ export default function AgentModerationScreen({ currentSession }) {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Transaction Mode</Text>
+            <Text style={styles.label}>Mode de transaction</Text>
             <Text style={styles.readOnlyValue}>
               {listingTypeLabel[selectedProperty.listing_type]}{isLocked ? ' 🔒' : ''}
             </Text>
@@ -308,7 +309,7 @@ export default function AgentModerationScreen({ currentSession }) {
             <Text
               style={[
                 styles.feedbackText,
-                feedbackMessage.startsWith('Error') ? styles.errorText : styles.successText,
+                feedbackMessage.startsWith('Erreur') ? styles.errorText : styles.successText,
               ]}
             >
               {feedbackMessage}
@@ -318,7 +319,7 @@ export default function AgentModerationScreen({ currentSession }) {
           {!isLocked && (
             <View style={styles.actionRow}>
               <Pressable style={styles.saveButton} onPress={handleSaveChanges}>
-                <Text style={styles.saveButtonText}>💾 Save Changes</Text>
+                <Text style={styles.saveButtonText}>💾 Enregistrer</Text>
               </Pressable>
 
               {selectedProperty.status === 'draft' && (
@@ -326,7 +327,7 @@ export default function AgentModerationScreen({ currentSession }) {
                   style={styles.activateButton}
                   onPress={() => handleActivateDraft(selectedProperty)}
                 >
-                  <Text style={styles.activateButtonText}>✅ Activate</Text>
+                  <Text style={styles.activateButtonText}>✅ Activer</Text>
                 </Pressable>
               )}
 
@@ -335,7 +336,7 @@ export default function AgentModerationScreen({ currentSession }) {
                   style={styles.deactivateButton}
                   onPress={() => handleDeactivate(selectedProperty)}
                 >
-                  <Text style={styles.deactivateButtonText}>📝 Revert to Draft</Text>
+                  <Text style={styles.deactivateButtonText}>📝 Brouillon</Text>
                 </Pressable>
               )}
             </View>
@@ -350,15 +351,15 @@ export default function AgentModerationScreen({ currentSession }) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.brand}>HOLMIA</Text>
-        <Text style={styles.heading}>Agent Moderation</Text>
+        <Text style={styles.heading}>Modération Agent</Text>
         <Text style={styles.subheading}>
-          Edit and activate assigned listings · {currentSession?.username || 'demo_agent'}
+          Modifier et activer les annonces · {currentSession?.username || 'demo_agent'}
         </Text>
 
         {properties.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>No assigned listings</Text>
+            <Text style={styles.emptyText}>Aucune annonce assignée</Text>
           </View>
         ) : (
           properties.map((prop) => {
@@ -388,8 +389,8 @@ export default function AgentModerationScreen({ currentSession }) {
                 </Text>
                 <Text style={styles.priceText}>
                   {prop.listing_type === 'rent'
-                    ? `£${prop.price.toLocaleString('en-GB')}/month`
-                    : `£${prop.price.toLocaleString('en-GB')}`}
+                    ? `${prop.price.toLocaleString('fr-FR')} €/mois`
+                    : `${prop.price.toLocaleString('fr-FR')} €`}
                 </Text>
 
                 <View style={styles.cardActions}>
@@ -397,7 +398,7 @@ export default function AgentModerationScreen({ currentSession }) {
                     style={styles.editBtn}
                     onPress={() => handleSelectProperty(prop)}
                   >
-                    <Text style={styles.editBtnText}>✏️ Edit</Text>
+                    <Text style={styles.editBtnText}>✏️ Modifier</Text>
                   </Pressable>
 
                   {isDraft && (
@@ -405,7 +406,7 @@ export default function AgentModerationScreen({ currentSession }) {
                       style={styles.activateBtnSmall}
                       onPress={() => handleActivateDraft(prop)}
                     >
-                      <Text style={styles.activateBtnSmallText}>✅ Activate</Text>
+                      <Text style={styles.activateBtnSmallText}>✅ Activer</Text>
                     </Pressable>
                   )}
                 </View>
@@ -418,7 +419,7 @@ export default function AgentModerationScreen({ currentSession }) {
           <Text
             style={[
               styles.feedbackText,
-              feedbackMessage.startsWith('Error') ? styles.errorText : styles.successText,
+              feedbackMessage.startsWith('Erreur') ? styles.errorText : styles.successText,
             ]}
           >
             {feedbackMessage}
@@ -426,19 +427,19 @@ export default function AgentModerationScreen({ currentSession }) {
         ) : null}
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>📋 Features — Week 3</Text>
+          <Text style={styles.infoCardTitle}>📋 Fonctionnalité — Semaine 3</Text>
           <Text style={styles.infoCardItem}>
-            • Agent can edit details of assigned listings
+            • L'agent peut modifier les détails des annonces assignées
           </Text>
           <Text style={styles.infoCardItem}>
-            • Draft activation via{' '}
+            • Activation des brouillons via{' '}
             <Text style={styles.bold}>sessionService.activateProperty()</Text>
           </Text>
           <Text style={styles.infoCardItem}>
-            • Automatic price/type locking once under offer
+            • Verrouillage automatique du prix/type après Under Offer
           </Text>
           <Text style={styles.infoCardItem}>
-            • Field validations enforced before saving
+            • Validation des champs avant enregistrement
           </Text>
         </View>
       </ScrollView>
