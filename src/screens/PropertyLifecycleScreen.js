@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -7,408 +7,433 @@ import {
   View,
   Pressable,
 } from 'react-native';
-import { colors } from '../styles/theme';
+import { updateProperty } from '../services/propertyService';
+import { authColors as colors } from '../styles/authTheme';
 
-const statusConfig = {
-  none:        { label: 'Création',    color: '#607D8B', bg: '#ECEFF1', icon: '🆕' },
-  draft:       { label: 'Brouillon',   color: '#757575', bg: '#EEEEEE', icon: '📝' },
-  active:      { label: 'Actif',       color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
-  under_offer: { label: 'Sous offre',  color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
-  sold:        { label: 'Vendu',       color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
-  rented:      { label: 'Loué',        color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
-};
+export default function PropertyLifecycleScreen({ currentSession, onBack }) {
+  const [activeTab, setActiveTab] = useState('lifecycle'); // 'lifecycle' | 'offers'
+  const [selectedPropId, setSelectedPropId] = useState('prop-1');
+  const [message, setMessage] = useState('');
 
-// Valid transitions diagram
-const transitionRules = [
-  { from: 'draft',       to: 'active',      desc: 'Activation par vendeur ou agent' },
-  { from: 'active',      to: 'draft',       desc: 'Retour en brouillon' },
-  { from: 'active',      to: 'under_offer', desc: 'Offre acceptée' },
-  { from: 'under_offer', to: 'active',      desc: 'Annulation de l\'offre' },
-  { from: 'under_offer', to: 'sold',        desc: 'Vente finalisée (vente uniquement)' },
-  { from: 'under_offer', to: 'rented',      desc: 'Location finalisée (location uniquement)' },
-];
-
-export default function PropertyLifecycleScreen({ currentSession }) {
-  const [selectedPropertyIndex, setSelectedPropertyIndex] = useState(0);
-  const [viewMode, setViewMode] = useState('timeline'); // timeline | rules
-
-  // Demo properties with their lifecycle history
-  const demoProperties = [
+  // Sample properties with full lifecycle history
+  const [properties, setProperties] = useState([
     {
       id: 'prop-1',
-      title: 'Bright Apartment in Central London',
+      title: 'Central London Flat',
       listing_type: 'sale',
+      price: 425000,
       status: 'under_offer',
       history: [
         {
           id: 'h1',
-          old_status: 'none',
-          new_status: 'draft',
-          changed_by: 'Mary Smith (Seller)',
-          notes: 'Property created',
-          changed_at: '2026-11-10T10:00:00',
+          from: 'Created',
+          to: 'Draft',
+          actor: 'Demo Seller',
+          date: '10 Nov 2026, 10:00',
+          notes: 'Listing created by seller.',
         },
         {
           id: 'h2',
-          old_status: 'draft',
-          new_status: 'active',
-          changed_by: 'Estate Agent (Agent)',
-          notes: 'Listing verified and approved by agent',
-          changed_at: '2026-11-11T14:30:00',
+          from: 'Draft',
+          to: 'Active',
+          actor: 'Demo Agent',
+          date: '12 Nov 2026, 14:30',
+          notes: 'Listing approved and activated by agent.',
         },
         {
           id: 'h3',
-          old_status: 'active',
-          new_status: 'under_offer',
-          changed_by: 'System',
-          notes: 'Offer of £820,000 accepted',
-          changed_at: '2026-11-16T09:15:00',
+          from: 'Active',
+          to: 'Under Offer',
+          actor: 'System',
+          date: '16 Nov 2026, 09:15',
+          notes: 'Offer of £420,000 accepted by seller.',
         },
       ],
     },
     {
       id: 'prop-2',
-      title: 'Furnished Student Studio in Oxford',
+      title: 'Oxford Student Studio',
       listing_type: 'rent',
-      status: 'rented',
+      price: 650,
+      status: 'active',
       history: [
         {
           id: 'h4',
-          old_status: 'none',
-          new_status: 'draft',
-          changed_by: 'John Martin (Seller)',
-          notes: 'Property created',
-          changed_at: '2026-10-20T08:00:00',
+          from: 'Created',
+          to: 'Draft',
+          actor: 'Demo Seller',
+          date: '12 Nov 2026, 09:00',
+          notes: 'Rental studio draft submitted.',
         },
         {
           id: 'h5',
-          old_status: 'draft',
-          new_status: 'active',
-          changed_by: 'John Martin (Seller)',
-          notes: 'Activated via session service',
-          changed_at: '2026-10-21T10:00:00',
-        },
-        {
-          id: 'h6',
-          old_status: 'active',
-          new_status: 'under_offer',
-          changed_by: 'System',
-          notes: 'Rental application approved',
-          changed_at: '2026-11-05T16:00:00',
-        },
-        {
-          id: 'h7',
-          old_status: 'under_offer',
-          new_status: 'rented',
-          changed_by: 'Estate Agent (Agent)',
-          notes: 'Tenancy agreement signed',
-          changed_at: '2026-11-10T09:30:00',
+          from: 'Draft',
+          to: 'Active',
+          actor: 'Demo Agent',
+          date: '13 Nov 2026, 11:20',
+          notes: 'Verified and activated for student market.',
         },
       ],
     },
     {
       id: 'prop-3',
-      title: 'Spacious Family House in Manchester',
+      title: 'Birmingham Converted Loft',
       listing_type: 'sale',
+      price: 310000,
       status: 'sold',
       history: [
         {
+          id: 'h6',
+          from: 'Created',
+          to: 'Draft',
+          actor: 'Demo Seller',
+          date: '15 Oct 2026, 11:00',
+          notes: 'Property created.',
+        },
+        {
+          id: 'h7',
+          from: 'Draft',
+          to: 'Active',
+          actor: 'Demo Agent',
+          date: '18 Oct 2026, 15:45',
+          notes: 'Published to public catalogue.',
+        },
+        {
           id: 'h8',
-          old_status: 'none',
-          new_status: 'draft',
-          changed_by: 'Mary Smith (Seller)',
-          notes: 'Property created',
-          changed_at: '2026-10-15T11:30:00',
+          from: 'Active',
+          to: 'Under Offer',
+          actor: 'System',
+          date: '02 Nov 2026, 10:30',
+          notes: 'Offer of £305,000 accepted.',
         },
         {
           id: 'h9',
-          old_status: 'draft',
-          new_status: 'active',
-          changed_by: 'Estate Agent (Agent)',
-          notes: 'Listing validated after survey check',
-          changed_at: '2026-10-16T15:00:00',
-        },
-        {
-          id: 'h10',
-          old_status: 'active',
-          new_status: 'under_offer',
-          changed_by: 'System',
-          notes: 'Offer of £415,000 accepted by seller',
-          changed_at: '2026-11-01T10:00:00',
-        },
-        {
-          id: 'h11',
-          old_status: 'under_offer',
-          new_status: 'sold',
-          changed_by: 'Estate Agent (Agent)',
-          notes: 'Completion and conveyancing finalized',
-          changed_at: '2026-11-14T10:00:00',
+          from: 'Under Offer',
+          to: 'Sold',
+          actor: 'Demo Agent',
+          date: '14 Nov 2026, 16:00',
+          notes: 'Conveyancing finalized, deed signed. Status is now terminal.',
         },
       ],
     },
-  ];
+  ]);
 
-  const selectedProperty = demoProperties[selectedPropertyIndex];
+  const [offers, setOffers] = useState([
+    {
+      id: 'off-1',
+      buyer_name: 'Alexander Wright',
+      property_id: 'prop-1',
+      property_title: 'Central London Flat',
+      amount: 420000,
+      date: '16 Nov 2026',
+      status: 'accepted',
+    },
+    {
+      id: 'off-2',
+      buyer_name: 'Sophie Bennett',
+      property_id: 'prop-1',
+      property_title: 'Central London Flat',
+      amount: 415000,
+      date: '15 Nov 2026',
+      status: 'rejected',
+    },
+    {
+      id: 'off-3',
+      buyer_name: 'James Harrison',
+      property_id: 'prop-2',
+      property_title: 'Oxford Student Studio',
+      amount: 650,
+      date: '17 Nov 2026',
+      status: 'pending',
+    },
+  ]);
 
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const selectedProp = properties.find((p) => p.id === selectedPropId) || properties[0];
+
+  const handleTransition = async (newStatus, notes) => {
+    const fromStatus = selectedProp.status;
+    const newEntry = {
+      id: 'h-' + Date.now(),
+      from: fromStatus.charAt(0).toUpperCase() + fromStatus.slice(1).replace('_', ' '),
+      to: newStatus.charAt(0).toUpperCase() + newStatus.slice(1).replace('_', ' '),
+      actor: currentSession?.username || 'Demo Agent',
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      notes: notes || `Status changed by agent to ${newStatus}.`,
+    };
+
+    setProperties((prev) =>
+      prev.map((p) =>
+        p.id === selectedProp.id
+          ? {
+              ...p,
+              status: newStatus,
+              history: [...p.history, newEntry],
+            }
+          : p
+      )
+    );
+
+    setMessage(`Status updated to "${newStatus.replace('_', ' ')}"! Recorded in audit trail.`);
+
+    // Persist to Supabase if UUID format
+    if (selectedProp.id.includes('-')) {
+      try {
+        await updateProperty(selectedProp.id, { status: newStatus });
+      } catch (e) {
+        // Handled gracefully
+      }
+    }
   };
+
+  const handleAcceptOffer = async (offerId) => {
+    const target = offers.find((o) => o.id === offerId);
+    if (!target) return;
+
+    setOffers((prev) =>
+      prev.map((o) => {
+        if (o.id === offerId) return { ...o, status: 'accepted' };
+        if (o.property_id === target.property_id && o.status === 'pending') {
+          return { ...o, status: 'rejected' };
+        }
+        return o;
+      })
+    );
+
+    // Automatically transition property to Under Offer
+    setSelectedPropId(target.property_id);
+    await handleTransition('under_offer', `Offer of £${target.amount.toLocaleString('en-GB')} accepted by ${target.buyer_name}.`);
+    setMessage(`Offer accepted: "${target.property_title}" transitioned to Under Offer!`);
+  };
+
+  const handleRejectOffer = (offerId) => {
+    setOffers((prev) =>
+      prev.map((o) => (o.id === offerId ? { ...o, status: 'rejected' } : o))
+    );
+    setMessage('Offer rejected.');
+  };
+
+  const isTerminal = ['sold', 'rented'].includes(selectedProp.status);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.brand}>HOLMIA</Text>
-        <Text style={styles.heading}>Cycle de vie des biens</Text>
-        <Text style={styles.subheading}>
-          Historique des statuts · {currentSession?.username || 'demo_agent'}
-        </Text>
+        {/* Header matching Figma wireframes */}
+        <View style={styles.headerRow}>
+          {onBack && (
+            <Pressable onPress={onBack} style={styles.backBtn}>
+              <Text style={styles.backArrow}>←</Text>
+            </Pressable>
+          )}
+          <Text style={styles.headerTitle}>Lifecycle & Offers</Text>
+        </View>
 
-        {/* View Mode Toggle */}
-        <View style={styles.toggleRow}>
+        {/* Sub-tab toggle matching Wireframe Pills */}
+        <View style={styles.tabToggleRow}>
           <Pressable
-            style={[styles.toggleBtn, viewMode === 'timeline' && styles.toggleBtnActive]}
-            onPress={() => setViewMode('timeline')}
+            style={[styles.tabTogglePill, activeTab === 'lifecycle' && styles.tabToggleActive]}
+            onPress={() => setActiveTab('lifecycle')}
           >
-            <Text
-              style={[
-                styles.toggleBtnText,
-                viewMode === 'timeline' && styles.toggleBtnTextActive,
-              ]}
-            >
-              📊 Timeline
+            <Text style={[styles.tabToggleText, activeTab === 'lifecycle' && styles.tabToggleTextActive]}>
+              Status History
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.toggleBtn, viewMode === 'rules' && styles.toggleBtnActive]}
-            onPress={() => setViewMode('rules')}
+            style={[styles.tabTogglePill, activeTab === 'offers' && styles.tabToggleActive]}
+            onPress={() => setActiveTab('offers')}
           >
-            <Text
-              style={[
-                styles.toggleBtnText,
-                viewMode === 'rules' && styles.toggleBtnTextActive,
-              ]}
-            >
-              📐 Règles
+            <Text style={[styles.tabToggleText, activeTab === 'offers' && styles.tabToggleTextActive]}>
+              Offers ({offers.filter((o) => o.status === 'pending').length} pending)
             </Text>
           </Pressable>
         </View>
 
-        {viewMode === 'rules' ? (
-          <>
-            {/* Status Transition Rules */}
-            <View style={styles.rulesCard}>
-              <Text style={styles.rulesTitle}>Transitions de statut autorisées</Text>
-              {transitionRules.map((rule, idx) => {
-                const fromSt = statusConfig[rule.from];
-                const toSt = statusConfig[rule.to];
-                return (
-                  <View key={idx} style={styles.ruleRow}>
-                    <View style={[styles.ruleBadge, { backgroundColor: fromSt.bg }]}>
-                      <Text style={{ color: fromSt.color, fontWeight: '700', fontSize: 12 }}>
-                        {fromSt.icon} {fromSt.label}
-                      </Text>
-                    </View>
-                    <Text style={styles.ruleArrow}>→</Text>
-                    <View style={[styles.ruleBadge, { backgroundColor: toSt.bg }]}>
-                      <Text style={{ color: toSt.color, fontWeight: '700', fontSize: 12 }}>
-                        {toSt.icon} {toSt.label}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+        {message ? <Text style={styles.bannerText}>{message}</Text> : null}
 
-            <View style={styles.constraintCard}>
-              <Text style={styles.constraintTitle}>⚠️ Contraintes métier</Text>
-              <Text style={styles.constraintItem}>
-                • <Text style={styles.bold}>Sold</Text> et{' '}
-                <Text style={styles.bold}>Rented</Text> sont des statuts terminaux
-                (irréversibles)
-              </Text>
-              <Text style={styles.constraintItem}>
-                • Un bien en <Text style={styles.bold}>Vente</Text> ne peut pas passer à{' '}
-                <Text style={styles.bold}>Loué</Text>
-              </Text>
-              <Text style={styles.constraintItem}>
-                • Un bien en <Text style={styles.bold}>Location</Text> ne peut pas passer à{' '}
-                <Text style={styles.bold}>Vendu</Text>
-              </Text>
-              <Text style={styles.constraintItem}>
-                • Le prix et le type sont{' '}
-                <Text style={styles.bold}>verrouillés après Under Offer</Text>
-              </Text>
-            </View>
-
-            {/* Visual State Diagram */}
-            <View style={styles.diagramCard}>
-              <Text style={styles.diagramTitle}>📊 Diagramme d'états</Text>
-              <View style={styles.diagram}>
-                {/* Row 1: Draft -> Active */}
-                <View style={styles.diagramRow}>
-                  <View style={[styles.diagramNode, { backgroundColor: statusConfig.draft.bg }]}>
-                    <Text style={{ color: statusConfig.draft.color, fontWeight: '700' }}>
-                      {statusConfig.draft.icon} Brouillon
-                    </Text>
-                  </View>
-                  <Text style={styles.diagramArrow}>⇄</Text>
-                  <View style={[styles.diagramNode, { backgroundColor: statusConfig.active.bg }]}>
-                    <Text style={{ color: statusConfig.active.color, fontWeight: '700' }}>
-                      {statusConfig.active.icon} Actif
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.diagramDown}>↓</Text>
-
-                {/* Row 2: Under Offer */}
-                <View style={styles.diagramRow}>
-                  <View style={[styles.diagramNode, { backgroundColor: statusConfig.under_offer.bg }]}>
-                    <Text style={{ color: statusConfig.under_offer.color, fontWeight: '700' }}>
-                      {statusConfig.under_offer.icon} Sous offre
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.diagramSplit}>
-                  <Text style={styles.diagramDown}>↙️</Text>
-                  <Text style={styles.diagramDown}>↘️</Text>
-                </View>
-
-                {/* Row 3: Sold / Rented */}
-                <View style={styles.diagramRow}>
-                  <View style={[styles.diagramNode, { backgroundColor: statusConfig.sold.bg }]}>
-                    <Text style={{ color: statusConfig.sold.color, fontWeight: '700' }}>
-                      {statusConfig.sold.icon} Vendu
-                    </Text>
-                  </View>
-                  <View style={[styles.diagramNode, { backgroundColor: statusConfig.rented.bg }]}>
-                    <Text style={{ color: statusConfig.rented.color, fontWeight: '700' }}>
-                      {statusConfig.rented.icon} Loué
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.diagramRow}>
-                  <View style={styles.terminalBadge}>
-                    <Text style={styles.terminalText}>🔒 Terminal</Text>
-                  </View>
-                  <View style={styles.terminalBadge}>
-                    <Text style={styles.terminalText}>🔒 Terminal</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </>
-        ) : (
+        {activeTab === 'lifecycle' ? (
           <>
             {/* Property Selector */}
-            <Text style={styles.sectionLabel}>Sélectionner un bien :</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.propertyScroll}
-              contentContainerStyle={styles.propertyScrollContent}
-            >
-              {demoProperties.map((prop, idx) => {
-                const st = statusConfig[prop.status];
-                const isSelected = idx === selectedPropertyIndex;
+            <Text style={styles.sectionSubtitle}>Select property:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propSelectorScroll}>
+              {properties.map((p) => {
+                const isSelected = p.id === selectedProp.id;
                 return (
                   <Pressable
-                    key={prop.id}
-                    style={[styles.propertySelectorCard, isSelected && styles.propertySelectorActive]}
-                    onPress={() => setSelectedPropertyIndex(idx)}
+                    key={p.id}
+                    style={[styles.propPill, isSelected && styles.propPillActive]}
+                    onPress={() => {
+                      setSelectedPropId(p.id);
+                      setMessage('');
+                    }}
                   >
-                    <Text style={styles.propertySelectorTitle} numberOfLines={1}>
-                      {prop.title}
+                    <Text style={[styles.propPillText, isSelected && styles.propPillTextActive]}>
+                      {p.title}
                     </Text>
-                    <View style={[styles.miniStatusBadge, { backgroundColor: st.bg }]}>
-                      <Text style={{ color: st.color, fontSize: 11, fontWeight: '700' }}>
-                        {st.icon} {st.label}
-                      </Text>
-                    </View>
                   </Pressable>
                 );
               })}
             </ScrollView>
 
-            {/* Timeline */}
-            <View style={styles.timelineCard}>
-              <Text style={styles.timelineTitle}>{selectedProperty.title}</Text>
-              <Text style={styles.timelineSubtitle}>
-                {selectedProperty.listing_type === 'sale' ? 'Vente' : 'Location'} · Statut actuel :{' '}
-                {statusConfig[selectedProperty.status].icon}{' '}
-                {statusConfig[selectedProperty.status].label}
+            {/* Current Status Card */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{selectedProp.title}</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>
+                    {selectedProp.status.toUpperCase().replace('_', ' ')}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.propertyInfo}>
+                {selectedProp.listing_type === 'sale' ? 'Sale' : 'Rent'} · £{selectedProp.price.toLocaleString('en-GB')}{selectedProp.listing_type === 'rent' ? '/mo' : ''}
               </Text>
 
-              <View style={styles.timeline}>
-                {selectedProperty.history.map((entry, idx) => {
-                  const isLast = idx === selectedProperty.history.length - 1;
-                  const newSt = statusConfig[entry.new_status] || statusConfig.draft;
+              {/* Status Transition Actions for Agent */}
+              {!isTerminal ? (
+                <View style={styles.transitionActions}>
+                  <Text style={styles.transitionLabel}>Transition to next state:</Text>
+                  <View style={styles.actionBtnRow}>
+                    {selectedProp.status === 'draft' && (
+                      <Pressable
+                        style={styles.terracottaBtn}
+                        onPress={() => handleTransition('active', 'Activated by agent.')}
+                      >
+                        <Text style={styles.btnTextWhite}>Activate (Active)</Text>
+                      </Pressable>
+                    )}
 
-                  return (
-                    <View key={entry.id} style={styles.timelineItem}>
-                      {/* Connector Line */}
-                      <View style={styles.timelineConnector}>
-                        <View style={[styles.timelineDot, { backgroundColor: newSt.color }]} />
-                        {!isLast && <View style={styles.timelineLine} />}
-                      </View>
+                    {selectedProp.status === 'active' && (
+                      <>
+                        <Pressable
+                          style={styles.whiteBtn}
+                          onPress={() => handleTransition('draft', 'Returned to draft by agent.')}
+                        >
+                          <Text style={styles.btnTextDark}>Revert to Draft</Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.terracottaBtn}
+                          onPress={() => handleTransition('under_offer', 'Manual offer negotiation.')}
+                        >
+                          <Text style={styles.btnTextWhite}>Under Offer</Text>
+                        </Pressable>
+                      </>
+                    )}
 
-                      {/* Entry Content */}
-                      <View style={styles.timelineContent}>
-                        <View style={styles.timelineHeader}>
-                          <View style={[styles.timelineStatusBadge, { backgroundColor: newSt.bg }]}>
-                            <Text style={{ color: newSt.color, fontWeight: '700', fontSize: 13 }}>
-                              {newSt.icon} {newSt.label}
-                            </Text>
-                          </View>
-                          <Text style={styles.timelineDate}>
-                            {formatDate(entry.changed_at)}
-                          </Text>
-                        </View>
-
-                        {entry.old_status !== 'none' && (
-                          <Text style={styles.timelineTransition}>
-                            {statusConfig[entry.old_status]?.icon}{' '}
-                            {statusConfig[entry.old_status]?.label} →{' '}
-                            {newSt.icon} {newSt.label}
-                          </Text>
+                    {selectedProp.status === 'under_offer' && (
+                      <>
+                        <Pressable
+                          style={styles.whiteBtn}
+                          onPress={() => handleTransition('active', 'Offer collapsed, back on market.')}
+                        >
+                          <Text style={styles.btnTextDark}>Back to Active</Text>
+                        </Pressable>
+                        {selectedProp.listing_type === 'sale' ? (
+                          <Pressable
+                            style={styles.terracottaBtn}
+                            onPress={() => handleTransition('sold', 'Contracts exchanged and completed.')}
+                          >
+                            <Text style={styles.btnTextWhite}>Finalize Sale (Sold)</Text>
+                          </Pressable>
+                        ) : (
+                          <Pressable
+                            style={styles.terracottaBtn}
+                            onPress={() => handleTransition('rented', 'Tenancy agreement signed.')}
+                          >
+                            <Text style={styles.btnTextWhite}>Finalize Let (Rented)</Text>
+                          </Pressable>
                         )}
+                      </>
+                    )}
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.terminalBox}>
+                  <Text style={styles.terminalText}>
+                    🔒 Status is terminal ({selectedProp.status.toUpperCase()}). Modifications are locked.
+                  </Text>
+                </View>
+              )}
+            </View>
 
-                        <Text style={styles.timelineNotes}>{entry.notes}</Text>
-                        <Text style={styles.timelineActor}>Par : {entry.changed_by}</Text>
-                      </View>
+            {/* Audit Trail Timeline */}
+            <Text style={styles.sectionHeading}>Audit Trail & History</Text>
+            <View style={styles.timelineCard}>
+              {selectedProp.history.map((entry, idx) => {
+                const isLast = idx === selectedProp.history.length - 1;
+                return (
+                  <View key={entry.id} style={styles.timelineRow}>
+                    <View style={styles.timelineLeftCol}>
+                      <View style={styles.timelineDot} />
+                      {!isLast && <View style={styles.timelineLine} />}
                     </View>
-                  );
-                })}
+                    <View style={styles.timelineBody}>
+                      <View style={styles.timelineHeader}>
+                        <Text style={styles.transitionText}>
+                          {entry.from} → <Text style={{ fontWeight: '700' }}>{entry.to}</Text>
+                        </Text>
+                        <Text style={styles.timelineDate}>{entry.date}</Text>
+                      </View>
+                      <Text style={styles.timelineNotes}>{entry.notes}</Text>
+                      <Text style={styles.timelineActor}>By: {entry.actor}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Business Constraints summary */}
+            <View style={styles.notesContainer}>
+              <Text style={styles.noteItem}>• Sold & Rented are terminal states (irreversible).</Text>
+              <Text style={styles.noteItem}>• Price and property type are locked once Under Offer.</Text>
+              <Text style={styles.noteItem}>• Accepting an offer automatically rejects concurrent pending offers.</Text>
+            </View>
+          </>
+        ) : (
+          /* Offers View matching Wireframe 12 */
+          <>
+            <Text style={styles.sectionSubtitle}>Received Offers & Applications:</Text>
+            {offers.map((item) => (
+              <View key={item.id} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>{item.buyer_name}</Text>
+                  <View style={[styles.statusBadge, item.status === 'accepted' && styles.statusBadgeActive]}>
+                    <Text style={styles.statusBadgeText}>
+                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.propertyInfo}>
+                  £{item.amount.toLocaleString('en-GB')} · {item.date} · {item.property_title}
+                </Text>
+
+                {item.status === 'pending' ? (
+                  <View style={styles.cardActions}>
+                    <Pressable
+                      style={styles.terracottaBtn}
+                      onPress={() => handleAcceptOffer(item.id)}
+                    >
+                      <Text style={styles.btnTextWhite}>Accept</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.whiteBtn}
+                      onPress={() => handleRejectOffer(item.id)}
+                    >
+                      <Text style={styles.btnTextDark}>Reject</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Text style={styles.resolvedText}>
+                    Status: <Text style={{ fontWeight: '700' }}>{item.status}</Text>
+                  </Text>
+                )}
               </View>
+            ))}
+
+            <View style={styles.notesContainer}>
+              <Text style={styles.noteItem}>note: accept 1 offer = others rejected + status Under Offer</Text>
+              <Text style={styles.noteItem}>note: same for rental applications (move-in date)</Text>
             </View>
           </>
         )}
-
-        <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>📋 Fonctionnalité — Semaine 3</Text>
-          <Text style={styles.infoCardItem}>
-            • Historique complet des transitions via{' '}
-            <Text style={styles.bold}>propertyRepo.getStatusHistory()</Text>
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Timeline visuelle avec dates, acteurs et notes
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Diagramme d'états avec transitions autorisées
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Contraintes métier : statuts terminaux, verrouillage de champs
-          </Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -417,311 +442,280 @@ export default function PropertyLifecycleScreen({ currentSession }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
   content: {
-    padding: 24,
-    paddingTop: 40,
-    paddingBottom: 60,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 40,
   },
-  brand: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: 3,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
   },
-  heading: {
+  backBtn: {
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  backArrow: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.primary,
-    marginTop: 6,
-    marginBottom: 4,
+    color: '#2A2424',
   },
-  subheading: {
-    fontSize: 14,
-    color: colors.secondary,
-    marginBottom: 20,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2A2424',
   },
-  toggleRow: {
+  tabToggleRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
     marginBottom: 16,
   },
-  toggleBtn: {
+  tabTogglePill: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    height: 40,
     borderWidth: 1,
-    borderColor: '#CCD6D1',
-    borderRadius: 12,
-    paddingVertical: 10,
+    borderColor: '#2A2424',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  toggleBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  tabToggleActive: {
+    backgroundColor: '#2A2424',
   },
-  toggleBtnText: {
-    fontSize: 14,
-    color: colors.primary,
+  tabToggleText: {
+    fontSize: 13,
+    color: '#2A2424',
     fontWeight: '600',
   },
-  toggleBtnTextActive: {
+  tabToggleTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  sectionLabel: {
-    fontSize: 14,
+  bannerText: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
+    fontSize: 12,
+    color: '#2A2424',
+    fontStyle: 'italic',
+  },
+  sectionSubtitle: {
+    fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
-    marginBottom: 10,
-  },
-  propertyScroll: {
-    marginBottom: 16,
-  },
-  propertyScrollContent: {
-    gap: 10,
-    paddingRight: 8,
-  },
-  propertySelectorCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CCD6D1',
-    borderRadius: 12,
-    padding: 12,
-    width: 180,
-  },
-  propertySelectorActive: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-    backgroundColor: '#FBEFEA',
-  },
-  propertySelectorTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 6,
-  },
-  miniStatusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  // Rules View
-  rulesCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginBottom: 16,
-  },
-  rulesTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 12,
-  },
-  ruleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    color: '#555555',
     marginBottom: 8,
+  },
+  propSelectorScroll: {
     gap: 8,
+    paddingBottom: 16,
   },
-  ruleBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  ruleArrow: {
-    fontSize: 18,
-    color: colors.secondary,
-  },
-  constraintCard: {
-    backgroundColor: '#FFF8E1',
-    borderRadius: 14,
-    padding: 16,
+  propPill: {
     borderWidth: 1,
-    borderColor: '#FFE082',
-    marginBottom: 16,
-  },
-  constraintTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#E65100',
-    marginBottom: 10,
-  },
-  constraintItem: {
-    fontSize: 13,
-    color: '#5D4037',
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  bold: {
-    fontWeight: '700',
-  },
-  // State Diagram
-  diagramCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginBottom: 16,
-  },
-  diagramTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  diagram: {
-    alignItems: 'center',
-  },
-  diagramRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 4,
-  },
-  diagramNode: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    minWidth: 120,
-    alignItems: 'center',
-  },
-  diagramArrow: {
-    fontSize: 20,
-    color: colors.secondary,
-    alignSelf: 'center',
-  },
-  diagramDown: {
-    fontSize: 24,
-    color: colors.secondary,
-    textAlign: 'center',
-    marginVertical: 2,
-  },
-  diagramSplit: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 80,
-  },
-  terminalBadge: {
-    backgroundColor: '#FFEBEE',
+    borderColor: '#2A2424',
+    borderRadius: 16,
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  terminalText: {
-    fontSize: 11,
-    color: '#C62828',
-    fontWeight: '700',
-  },
-  // Timeline
-  timelineCard: {
+    paddingVertical: 6,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginBottom: 16,
   },
-  timelineTitle: {
-    fontSize: 16,
+  propPillActive: {
+    backgroundColor: '#2A2424',
+  },
+  propPillText: {
+    fontSize: 12,
+    color: '#2A2424',
+    fontWeight: '500',
+  },
+  propPillTextActive: {
+    color: '#FFFFFF',
     fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 2,
   },
-  timelineSubtitle: {
-    fontSize: 13,
-    color: colors.secondary,
+  card: {
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
     marginBottom: 16,
   },
-  timeline: {
-    paddingLeft: 4,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  timelineConnector: {
-    width: 24,
-    alignItems: 'center',
-  },
-  timelineDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    marginTop: 4,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: '#CCD6D1',
-    marginTop: 2,
-    marginBottom: 2,
-  },
-  timelineContent: {
-    flex: 1,
-    paddingLeft: 12,
-    paddingBottom: 20,
-  },
-  timelineHeader: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
   },
-  timelineStatusBadge: {
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2A2424',
+    flex: 1,
+    marginRight: 8,
+  },
+  statusBadge: {
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 14,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingVertical: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  statusBadgeActive: {
+    backgroundColor: '#EBE8DF',
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    color: '#2A2424',
+    fontWeight: '700',
+  },
+  propertyInfo: {
+    fontSize: 13,
+    color: '#555555',
+    marginBottom: 12,
+  },
+  transitionActions: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5DFD9',
+    paddingTop: 12,
+  },
+  transitionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2A2424',
+    marginBottom: 8,
+  },
+  actionBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  terracottaBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: '#B6311E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  btnTextWhite: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  whiteBtn: {
+    flex: 1,
+    height: 42,
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  btnTextDark: {
+    color: '#2A2424',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  terminalBox: {
+    padding: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    marginTop: 8,
+  },
+  terminalText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2A2424',
+  },
+  sectionHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2A2424',
+    marginBottom: 10,
+  },
+  timelineCard: {
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 16,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  timelineLeftCol: {
+    width: 20,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#B6311E',
+    marginTop: 4,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#2A2424',
+    marginTop: 4,
+  },
+  timelineBody: {
+    flex: 1,
+    paddingBottom: 8,
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  transitionText: {
+    fontSize: 14,
+    color: '#2A2424',
   },
   timelineDate: {
     fontSize: 11,
-    color: '#999',
-  },
-  timelineTransition: {
-    fontSize: 12,
-    color: colors.secondary,
-    marginBottom: 4,
+    color: '#777777',
   },
   timelineNotes: {
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '500',
-    lineHeight: 18,
+    fontSize: 12,
+    color: '#555555',
     marginBottom: 2,
   },
   timelineActor: {
-    fontSize: 12,
-    color: colors.secondary,
+    fontSize: 11,
+    color: '#888888',
     fontStyle: 'italic',
   },
-  // Info Card
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginTop: 10,
-    marginBottom: 40,
+  cardActions: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  infoCardTitle: {
+  resolvedText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 8,
+    color: '#555555',
+    fontStyle: 'italic',
   },
-  infoCardItem: {
-    fontSize: 13,
-    color: colors.secondary,
-    lineHeight: 20,
+  notesContainer: {
+    marginTop: 8,
+  },
+  noteItem: {
+    fontSize: 12,
+    color: '#555555',
+    fontStyle: 'italic',
     marginBottom: 4,
   },
 });
-

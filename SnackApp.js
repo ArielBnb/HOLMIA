@@ -20,7 +20,7 @@ const colors = {
   primary: '#B6311E',       // Exact Figma Terracotta Red from authTheme.js
   primaryHover: '#982414',
   primaryLight: '#FBEFEA',
-  background: '#F6F5F0',    // Exact Figma Ivory Background
+  background: '#FFFFFF',    // Exact Figma Ivory Background
   cardBg: '#FFFFFF',
   surfaceAlt: '#EEF2F0',
   textPrimary: '#2A2424',   // Exact Figma Dark Text

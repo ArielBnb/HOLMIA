@@ -2,18 +2,18 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AuthButton, AuthError, AuthInput } from '../components/AuthControls';
 import HolmiaLogo from '../components/HolmiaLogo';
-import { loginWithUsername } from '../services/authService';
+import { loginUser } from '../services/authService';
 import { authColors, authStyles as s } from '../styles/authTheme';
 export default function LoginScreen({ onRegister }) {
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function submit() {
     if (busy) return;
-    if (!username.trim() || !password) { setError('Enter your username and password.'); return; }
+    if (!identifier.trim() || !password) { setError('Enter your username or email and password.'); return; }
     setBusy(true); setError('');
-    try { await loginWithUsername(username, password); }
+    try { await loginUser(identifier, password); }
     catch (failure) { setError(failure.message); }
     finally { setBusy(false); }
   }
@@ -23,7 +23,7 @@ export default function LoginScreen({ onRegister }) {
       <Text style={styles.title}>City Estate</Text>
       <Text style={styles.subtitle}>buyers &amp; sellers</Text>
       <View style={styles.form}>
-        <AuthInput label="Username" value={username} onChangeText={setUsername} autoComplete="username" textContentType="username" editable={!busy} maxLength={40} />
+        <AuthInput label="Username or Email" value={identifier} onChangeText={setIdentifier} autoComplete="username" textContentType="username" autoCapitalize="none" editable={!busy} maxLength={80} />
         <AuthInput label="Password" password value={password} onChangeText={setPassword} autoComplete="current-password" textContentType="password" editable={!busy} maxLength={128} returnKeyType="go" onSubmitEditing={submit} />
         <AuthError message={error} />
         <AuthButton title="Login" busy={busy} onPress={submit} />

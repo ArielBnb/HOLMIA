@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-export const authColors = { background: '#F6F5F0', red: '#B6311E', text: '#2A2424' };
+export const authColors = { background: '#FFFFFF', red: '#B6311E', text: '#2A2424' };
 export const authStyles = StyleSheet.create({
   page: { flex: 1, backgroundColor: authColors.background },
   scroll: { flexGrow: 1, paddingHorizontal: 32, width: '100%', maxWidth: 466, alignSelf: 'center' },

@@ -1,6 +1,27 @@
 import { getSupabase } from '../config/supabase';
 import { normalizeUsername, validateRegistration } from './authValidation';
 
+export async function loginUser(identifier, password) {
+  const trimmed = (identifier || '').trim();
+  if (!trimmed) throw new Error('Enter your username or email.');
+  if (!password) throw new Error('Enter your password.');
+
+  const client = getSupabase();
+
+  // If input contains @, use direct Supabase email authentication
+  if (trimmed.includes('@')) {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: trimmed.toLowerCase(),
+      password,
+    });
+    if (error) throw new Error(error.message || 'Invalid email or password.');
+    return data;
+  }
+
+  // Otherwise, use username login
+  return loginWithUsername(trimmed, password);
+}
+
 export async function loginWithUsername(username, password) {
   const client = getSupabase();
   const { data, error } = await client.functions.invoke('username-login', {
