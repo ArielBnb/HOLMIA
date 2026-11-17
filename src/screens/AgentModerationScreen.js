@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   editBtn: {
-    backgroundColor: '#E7EFEA',
+    backgroundColor: '#FBEFEA',
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 14,

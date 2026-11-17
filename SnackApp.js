@@ -17,21 +17,47 @@ import {
 // 1. BRAND THEME & REMOTE SUPABASE CONFIG
 // ============================================================================
 const colors = {
-  primary: '#183D35',
-  primaryHover: '#122D27',
-  primaryLight: '#E7EFEA',
-  background: '#F6F5F0',
+  primary: '#B6311E',       // Exact Figma Terracotta Red from authTheme.js
+  primaryHover: '#982414',
+  primaryLight: '#FBEFEA',
+  background: '#F6F5F0',    // Exact Figma Ivory Background
   cardBg: '#FFFFFF',
   surfaceAlt: '#EEF2F0',
-  textPrimary: '#183D35',
+  textPrimary: '#2A2424',   // Exact Figma Dark Text
   secondary: '#5D7068',
-  border: '#DCE4E0',
+  border: '#E5DFD9',
   accentGreen: '#2E7D32',
   accentOrange: '#E65100',
   accentBlue: '#1565C0',
   accentPurple: '#6A1B9A',
-  danger: '#C62828',
+  danger: '#B6311E',
 };
+
+// Exact Vector Logo from Figma Wireframes (traced in HolmiaLogo.js)
+function HolmiaLogo() {
+  const stroke = { borderWidth: 4.5, borderColor: colors.primary, backgroundColor: colors.background };
+  return (
+    <View style={logoStyles.container}>
+      <View style={logoStyles.mark}>
+        <View style={[stroke, logoStyles.outer]} />
+        <View style={[stroke, logoStyles.inner]} />
+        <View style={[stroke, logoStyles.leftCircle]} />
+        <View style={[stroke, logoStyles.rightCircle]} />
+      </View>
+      <Text style={logoStyles.word}>HOLMIA</Text>
+    </View>
+  );
+}
+
+const logoStyles = StyleSheet.create({
+  container: { width: 140, height: 130, alignSelf: 'center', alignItems: 'center', marginBottom: 6 },
+  mark: { width: 100, height: 90 },
+  outer: { position: 'absolute', left: 16, top: 0, width: 74, height: 86, borderTopLeftRadius: 42, borderTopRightRadius: 42 },
+  inner: { position: 'absolute', left: 31, top: 15, width: 44, height: 60, borderTopLeftRadius: 27, borderTopRightRadius: 27 },
+  leftCircle: { position: 'absolute', left: 3, top: 15, width: 44, height: 44, borderRadius: 22 },
+  rightCircle: { position: 'absolute', left: 48, top: 38, width: 44, height: 44, borderRadius: 22 },
+  word: { color: colors.primary, fontSize: 32, lineHeight: 38, fontWeight: '700', letterSpacing: -1, marginTop: 4 },
+});
 
 const SUPABASE_URL = 'https://icfqjwfmcwlejqpezhyi.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UfdcgZ0_jAf90ZHCP54vBQ_DNUKzpjF';
@@ -177,9 +203,9 @@ function LoginScreen({ session, onLogin, onLogout }) {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.brand}>HOLMIA</Text>
-      <Text style={styles.heading}>Account & Sign In</Text>
-      <Text style={styles.subheading}>Role-Based Session Management · Week 2 & 3</Text>
+      <HolmiaLogo />
+      <Text style={styles.wireframeTitle}>City Estate</Text>
+      <Text style={styles.wireframeSubtitle}>buyers &amp; sellers</Text>
 
       {session ? (
         <View style={styles.sessionBox}>
@@ -817,6 +843,22 @@ const styles = StyleSheet.create({
   bold: {
     fontWeight: '700',
   },
+  wireframeTitle: {
+    textAlign: 'center',
+    color: colors.textPrimary,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  wireframeSubtitle: {
+    textAlign: 'center',
+    color: colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+    marginBottom: 16,
+  },
   card: {
     backgroundColor: colors.cardBg,
     borderRadius: 12,
@@ -1181,12 +1223,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sessionBox: {
-    backgroundColor: '#E7EFEA',
+    backgroundColor: '#FBEFEA',
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#BDD2C6',
+    borderColor: '#E5DFD9',
   },
   sessionTitle: {
     fontSize: 13,
@@ -1307,7 +1349,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   navItemActive: {
-    backgroundColor: '#E7EFEA',
+    backgroundColor: '#FBEFEA',
   },
   navIcon: {
     fontSize: 18,

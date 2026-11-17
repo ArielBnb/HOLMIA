@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   navItemActive: {
-    backgroundColor: '#E7EFEA',
+    backgroundColor: '#FBEFEA',
   },
   navIcon: {
     fontSize: 20,

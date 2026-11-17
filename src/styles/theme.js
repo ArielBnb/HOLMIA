@@ -1,5 +1,8 @@
 export const colors = {
-  primary: '#183D35',
+  primary: '#B6311E',       // Terracotta brand color from Figma wireframes
+  primaryHover: '#982414',
+  primaryLight: '#FBEFEA',
   background: '#F6F5F0',
   secondary: '#5D7068',
+  text: '#2A2424',
 };

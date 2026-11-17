@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   propertySelectorActive: {
     borderColor: colors.primary,
     borderWidth: 2,
-    backgroundColor: '#E7EFEA',
+    backgroundColor: '#FBEFEA',
   },
   propertySelectorTitle: {
     fontSize: 13,
