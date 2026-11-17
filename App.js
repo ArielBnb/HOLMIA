@@ -4,6 +4,9 @@ import LoginScreen from './src/screens/LoginScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import DatabaseTestScreen from './src/screens/DatabaseTestScreen';
 import RoleAccessScreen from './src/screens/RoleAccessScreen';
+import AgentPortfolioScreen from './src/screens/AgentPortfolioScreen';
+import AgentModerationScreen from './src/screens/AgentModerationScreen';
+import PropertyLifecycleScreen from './src/screens/PropertyLifecycleScreen';
 import { colors } from './src/styles/theme';
 
 export default function App() {
@@ -51,6 +54,12 @@ export default function App() {
             onSwitchRole={handleSwitchRole}
           />
         );
+      case 'portfolio':
+        return <AgentPortfolioScreen currentSession={currentSession} />;
+      case 'moderation':
+        return <AgentModerationScreen currentSession={currentSession} />;
+      case 'lifecycle':
+        return <PropertyLifecycleScreen currentSession={currentSession} />;
       default:
         return <LoginScreen />;
     }
@@ -60,7 +69,10 @@ export default function App() {
     { id: 'login', label: 'Login', icon: '🔐' },
     { id: 'welcome', label: 'Accueil', icon: '🏠' },
     { id: 'catalog', label: 'Catalogue', icon: '📋' },
-    { id: 'roles', label: 'Session/Rôles', icon: '👤' },
+    { id: 'roles', label: 'Rôles', icon: '👤' },
+    { id: 'portfolio', label: 'Portfolio', icon: '🏢' },
+    { id: 'moderation', label: 'Modération', icon: '✏️' },
+    { id: 'lifecycle', label: 'Cycle', icon: '🔄' },
   ];
 
   return (
