@@ -1,0 +1,66 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> holmia@1.0.0 lint
+> eslint .
+
+
+/workspace/scratch/8c84b6b67ec1/HOLMIA/src/screens/AgentModerationScreen.js
+   95:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  93 |
+  94 |   useEffect(() => {
+> 95 |     loadAssignedProperties();
+     |     ^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  96 |   }, [loadAssignedProperties]);
+  97 |
+  98 |   const handleSelectProperty = (prop) => {  react-hooks/set-state-in-effect
+  226:49  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/no-unescaped-entities
+  432:16  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/no-unescaped-entities
+
+/workspace/scratch/8c84b6b67ec1/HOLMIA/src/screens/AgentPortfolioScreen.js
+  128:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  126 |
+  127 |   useEffect(() => {
+> 128 |     loadPortfolio();
+      |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  129 |   }, [loadPortfolio]);
+  130 |
+  131 |   const onRefresh = useCallback(() => {  react-hooks/set-state-in-effect
+  283:16  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react/no-unescaped-entities
+
+/workspace/scratch/8c84b6b67ec1/HOLMIA/src/screens/LoginScreen.js
+  147:101  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/workspace/scratch/8c84b6b67ec1/HOLMIA/src/screens/PropertyLifecycleScreen.js
+    1:27  warning  'useEffect' is defined but never used                            no-unused-vars
+    1:38  warning  'useCallback' is defined but never used                          no-unused-vars
+  252:63  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  406:26  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/workspace/scratch/8c84b6b67ec1/HOLMIA/src/screens/RoleAccessScreen.js
+  77:58  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/workspace/scratch/8c84b6b67ec1/HOLMIA/src/services/sessionService.ts
+  2:41  warning  'PropertyStatus' is defined but never used  @typescript-eslint/no-unused-vars
+  2:57  warning  'ListingType' is defined but never used     @typescript-eslint/no-unused-vars
+
+/workspace/scratch/8c84b6b67ec1/HOLMIA/src/tests/testRepositories.ts
+   10:5  warning  'failedTests' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  310:9  warning  'buyer2' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  387:9  warning  'propRent2' is assigned a value but never used    @typescript-eslint/no-unused-vars
+
+✖ 16 problems (9 errors, 7 warnings)
+
