@@ -1,126 +1,230 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import EmailConfirmationScreen from '../screens/EmailConfirmationScreen';
-import DatabaseTestScreen from '../screens/DatabaseTestScreen';
 import AgentPortfolioScreen from '../screens/AgentPortfolioScreen';
 import AgentModerationScreen from '../screens/AgentModerationScreen';
 import PropertyLifecycleScreen from '../screens/PropertyLifecycleScreen';
+import DatabaseTestScreen from '../screens/DatabaseTestScreen';
 import { authStyles as s } from '../styles/authTheme';
 
 function RoleHome({ profile }) {
   const { signOut } = useAuth();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  
-  // Default to portfolio for agent, catalogue for buyer/seller
-  const [activeTab, setActiveTab] = useState(profile.role === 'agent' ? 'portfolio' : 'catalogue');
+  const [activeTab, setActiveTab] = useState('listings');
+  const [editingProperty, setEditingProperty] = useState(null);
 
-  const tabs = profile.role === 'agent' ? [
-    { id: 'portfolio', label: 'Portfolio', icon: '💼' },
-    { id: 'moderation', label: 'Moderation', icon: '✏️' },
-    { id: 'lifecycle', label: 'Lifecycle', icon: '🔄' },
-    { id: 'catalogue', label: 'Catalogue', icon: '🏠' },
-  ] : [
-    { id: 'catalogue', label: 'Catalogue', icon: '🏠' },
-    { id: 'lifecycle', label: 'Lifecycle', icon: '🔄' },
+  const handleEditProperty = (prop) => {
+    setEditingProperty(prop);
+    setActiveTab('add');
+  };
+
+  const handleAddProperty = () => {
+    setEditingProperty(null);
+    setActiveTab('add');
+  };
+
+  const tabs = [
+    { id: 'listings', label: 'My listings' },
+    { id: 'add', label: 'Add' },
+    { id: 'offers', label: 'Offers' },
+    { id: 'profile', label: 'Profile' },
   ];
 
-  async function handleLogout() {
-    if (busy) return;
-    setBusy(true);
-    setError('');
-    try {
-      await signOut();
-    } catch (f) {
-      setError(f.message || 'Logout failed');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <View style={s.page} testID={`home-${profile.role}`}>
-      {/* Top Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 52, paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 22, fontWeight: '800', color: '#B6311E', letterSpacing: 1 }}>HOLMIA</Text>
-          <Text style={{ fontSize: 13, color: '#555', marginTop: 2 }}>
-            👤 {profile.full_name || profile.username || 'User'} · <Text style={{ fontWeight: '700', textTransform: 'capitalize' }}>{profile.role}</Text>
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={handleLogout}
-          disabled={busy}
-          style={{ backgroundColor: '#B6311E', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
-        >
-          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
-            {busy ? '...' : 'Logout'}
-          </Text>
-        </Pressable>
+    <SafeAreaView style={styles.container}>
+      {/* Screen Content */}
+      <View style={styles.content}>
+        {activeTab === 'listings' && (
+          <AgentPortfolioScreen
+            currentSession={profile}
+            onEditProperty={handleEditProperty}
+            onAddProperty={handleAddProperty}
+          />
+        )}
+        {activeTab === 'add' && (
+          <AgentModerationScreen
+            property={editingProperty}
+            onBack={() => setActiveTab('listings')}
+            onSaved={() => setActiveTab('listings')}
+          />
+        )}
+        {activeTab === 'offers' && (
+          <PropertyLifecycleScreen
+            currentSession={profile}
+            onBack={() => setActiveTab('listings')}
+          />
+        )}
+        {activeTab === 'profile' && (
+          <View style={styles.profileContainer}>
+            <Text style={styles.profileTitle}>Profile</Text>
+            <View style={styles.profileCard}>
+              <Text style={styles.profileName}>{profile.full_name || profile.username || 'User'}</Text>
+              <Text style={styles.profileMeta}>Role: <Text style={{ fontWeight: '700', textTransform: 'capitalize' }}>{profile.role}</Text></Text>
+              {profile.email ? <Text style={styles.profileMeta}>Email: {profile.email}</Text> : null}
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              style={styles.logoutBtn}
+              onPress={() => signOut().catch(() => {})}
+            >
+              <Text style={styles.logoutBtnText}>Logout</Text>
+            </Pressable>
+
+            {/* Quick link to raw catalogue test */}
+            <View style={{ marginTop: 24, flex: 1 }}>
+              <Text style={[styles.profileMeta, { fontWeight: '700', marginBottom: 8 }]}>Public Catalogue Preview:</Text>
+              <DatabaseTestScreen />
+            </View>
+          </View>
+        )}
       </View>
 
-      {/* Navigation Tabs */}
-      <View style={{ borderBottomWidth: 1, borderColor: '#E5E0D8', paddingBottom: 8 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <Pressable
-                key={tab.id}
-                onPress={() => setActiveTab(tab.id)}
-                style={{
-                  paddingVertical: 7,
-                  paddingHorizontal: 15,
-                  borderRadius: 18,
-                  backgroundColor: isActive ? '#B6311E' : '#EAE7DF',
-                }}
-              >
-                <Text style={{
-                  fontWeight: '700',
-                  fontSize: 13,
-                  color: isActive ? '#FFFFFF' : '#2A2424',
-                }}>
-                  {tab.icon} {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+      {/* Figma Bottom Navigation Bar (Screens 10, 11, 12) */}
+      <View style={styles.bottomNav}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <Pressable
+              key={tab.id}
+              style={styles.navItem}
+              onPress={() => {
+                if (tab.id === 'add') setEditingProperty(null);
+                setActiveTab(tab.id);
+              }}
+            >
+              <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
-
-      {profile.requested_role && profile.requested_role !== profile.role && (
-        <Text style={[s.link, { paddingHorizontal: 20, color: '#E65100', marginVertical: 4, textAlign: 'left', fontSize: 12 }]}>
-          {profile.requested_role} access requested — awaiting approval.
-        </Text>
-      )}
-      {error ? <Text accessibilityRole="alert" style={[s.error, { paddingHorizontal: 20, marginVertical: 4 }]}>{error}</Text> : null}
-
-      {/* Active Screen Content */}
-      <View style={{ flex: 1 }}>
-        {activeTab === 'portfolio' && <AgentPortfolioScreen currentSession={profile} />}
-        {activeTab === 'moderation' && <AgentModerationScreen currentSession={profile} />}
-        {activeTab === 'lifecycle' && <PropertyLifecycleScreen currentSession={profile} />}
-        {activeTab === 'catalogue' && <DatabaseTestScreen />}
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
+
 export default function AuthNavigator() {
   const { session, profile, loading, error, retry, signOut } = useAuth();
-  const [screen, setScreen] = useState('login'); const [registration, setRegistration] = useState(null);
-  function login() { setRegistration(null); setScreen('login'); }
-  if (loading) return <View style={[s.page, { justifyContent: 'center' }]}><ActivityIndicator color="#B6311E" accessibilityLabel="Loading session" /></View>;
-  if (session && !profile) return <View style={[s.page, { padding: 32, justifyContent: 'center', gap: 16 }]}>
-    <Text accessibilityRole="alert" style={s.error}>{error}</Text>
-    <Pressable accessibilityRole="button" onPress={retry}><Text style={s.link}>Retry</Text></Pressable>
-    <Pressable accessibilityRole="button" onPress={() => signOut().catch(() => {})}><Text style={s.link}>Logout</Text></Pressable>
-  </View>;
+  const [screen, setScreen] = useState('login');
+  const [registration, setRegistration] = useState(null);
+
+  function login() {
+    setRegistration(null);
+    setScreen('login');
+  }
+
+  if (loading) {
+    return (
+      <View style={[s.page, { justifyContent: 'center' }]}>
+        <ActivityIndicator color="#B6311E" accessibilityLabel="Loading session" />
+      </View>
+    );
+  }
+
+  if (session && !profile) {
+    return (
+      <View style={[s.page, { padding: 32, justifyContent: 'center', gap: 16 }]}>
+        <Text accessibilityRole="alert" style={s.error}>{error || 'Unable to load profile'}</Text>
+        <Pressable accessibilityRole="button" onPress={retry}><Text style={s.link}>Retry</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => signOut().catch(() => {})}><Text style={s.link}>Logout</Text></Pressable>
+      </View>
+    );
+  }
+
   if (profile) return <RoleHome key={profile.id + profile.role} profile={profile} />;
-  if (screen === 'register') return <RegisterScreen onLogin={login} onContinue={value => { setRegistration(value); setScreen('email'); }} />;
-  if (screen === 'email') return <EmailConfirmationScreen registration={registration} onBack={() => { setRegistration(null); setScreen('register'); }} onLogin={login} onRegistered={() => setRegistration(null)} />;
+  if (screen === 'register') {
+    return <RegisterScreen onLogin={login} onContinue={(val) => { setRegistration(val); setScreen('email'); }} />;
+  }
+  if (screen === 'email') {
+    return (
+      <EmailConfirmationScreen
+        registration={registration}
+        onBack={() => { setRegistration(null); setScreen('register'); }}
+        onLogin={login}
+        onRegistered={() => setRegistration(null)}
+      />
+    );
+  }
+
   return <LoginScreen onRegister={() => setScreen('register')} />;
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F5F0',
+  },
+  content: {
+    flex: 1,
+  },
+  profileContainer: {
+    flex: 1,
+    padding: 24,
+    backgroundColor: '#F6F5F0',
+  },
+  profileTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#2A2424',
+    marginBottom: 16,
+  },
+  profileCard: {
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 16,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2A2424',
+    marginBottom: 6,
+  },
+  profileMeta: {
+    fontSize: 14,
+    color: '#555555',
+    marginBottom: 4,
+  },
+  logoutBtn: {
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#B6311E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  // Figma Wireframe Bottom Bar
+  bottomNav: {
+    flexDirection: 'row',
+    height: 54,
+    borderTopWidth: 1,
+    borderTopColor: '#2A2424',
+    backgroundColor: '#F6F5F0',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+  },
+  navLabel: {
+    fontSize: 13,
+    color: '#777777',
+    fontWeight: '500',
+  },
+  navLabelActive: {
+    color: '#2A2424',
+    fontWeight: '700',
+  },
+});

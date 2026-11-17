@@ -8,120 +8,83 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
-import { colors } from '../styles/theme';
+import { authColors as colors } from '../styles/authTheme';
 
-// Status display helpers
-const statusConfig = {
-  draft:       { label: 'Draft',        color: '#757575', bg: '#EEEEEE', icon: '📝' },
-  active:      { label: 'Active',       color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
-  under_offer: { label: 'Under Offer',  color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
-  sold:        { label: 'Sold',         color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
-  rented:      { label: 'Rented',       color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
-};
-
-const listingTypeLabel = { sale: 'For Sale', rent: 'For Rent' };
-
-export default function AgentPortfolioScreen({ currentSession }) {
-  // Demo data simulating sessionService.getMyPortfolio() for agent
+export default function AgentPortfolioScreen({ currentSession, onEditProperty, onAddProperty }) {
   const [properties, setProperties] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState('all'); // all | draft | active | under_offer | sold | rented
+  const [filter, setFilter] = useState('all');
 
   const loadPortfolio = useCallback(() => {
-    // Simulated data — in production, calls sessionService.getMyPortfolio()
-    const demoProperties = [
+    const sample = [
       {
         id: 'prop-1',
-        title: 'Bright Apartment in Central London',
+        title: 'Central London Flat',
         description: 'Charming two-bedroom apartment with private balcony, close to tube station.',
-        price: 850000,
+        price: 425000,
         listing_type: 'sale',
         property_type: 'Flat',
-        location: 'London (Westminster)',
+        location: 'London (SW1)',
         status: 'active',
-        seller_id: 'seller-1',
-        seller_name: 'Mary Smith',
-        agent_id: 'agent-1',
-        created_at: '2026-11-10T10:00:00',
-        updated_at: '2026-11-15T14:30:00',
+        offersCount: 2,
       },
       {
         id: 'prop-2',
-        title: 'Furnished Student Studio in Oxford',
-        description: 'Compact fully furnished studio near the university campus.',
+        title: 'Oxford Student Studio',
+        description: 'Compact fully furnished modern studio near university campus.',
         price: 650,
         listing_type: 'rent',
         property_type: 'Studio',
         location: 'Oxford (City Centre)',
         status: 'draft',
-        seller_id: 'seller-2',
-        seller_name: 'John Martin',
-        agent_id: 'agent-1',
-        created_at: '2026-11-12T09:00:00',
-        updated_at: '2026-11-12T09:00:00',
+        offersCount: 0,
       },
       {
         id: 'prop-3',
-        title: 'Spacious Family House in Manchester',
-        description: 'Four-bedroom detached family home with private garden.',
-        price: 420000,
+        title: 'Manchester Family House',
+        description: 'Four-bedroom detached family home with private landscaped garden.',
+        price: 580000,
         listing_type: 'sale',
         property_type: 'House',
         location: 'Manchester (Didsbury)',
         status: 'under_offer',
-        seller_id: 'seller-1',
-        seller_name: 'Mary Smith',
-        agent_id: 'agent-1',
-        created_at: '2026-11-08T11:30:00',
-        updated_at: '2026-11-16T16:00:00',
+        offersCount: 3,
       },
       {
         id: 'prop-4',
-        title: 'Industrial Converted Loft in Birmingham',
-        description: 'Open-plan loft in a former warehouse with exposed brickwork.',
+        title: 'Birmingham Converted Loft',
+        description: 'Open-plan warehouse conversion with exposed brickwork and mezzanine.',
         price: 310000,
         listing_type: 'sale',
         property_type: 'Loft',
-        location: 'Birmingham (Jewellery Quarter)',
+        location: 'Birmingham (B1)',
         status: 'sold',
-        seller_id: 'seller-3',
-        seller_name: 'Paul Taylor',
-        agent_id: 'agent-1',
-        created_at: '2026-10-20T08:00:00',
-        updated_at: '2026-11-14T10:00:00',
+        offersCount: 1,
       },
       {
         id: 'prop-5',
-        title: 'Modern Two-Bed Flat in Bristol',
-        description: 'Contemporary flat with river views and private parking.',
-        price: 890,
+        title: 'Bristol Riverside Flat',
+        description: 'Contemporary two-bedroom apartment with river views and parking.',
+        price: 1150,
         listing_type: 'rent',
         property_type: 'Flat',
         location: 'Bristol (Harbourside)',
         status: 'rented',
-        seller_id: 'seller-2',
-        seller_name: 'John Martin',
-        agent_id: 'agent-1',
-        created_at: '2026-10-25T14:00:00',
-        updated_at: '2026-11-10T09:30:00',
+        offersCount: 4,
       },
       {
         id: 'prop-6',
-        title: 'Detached Country House in Cambridge',
-        description: 'Three-bedroom house with large garden in quiet residential area.',
+        title: 'Cambridge Detached House',
+        description: 'Three-bedroom house with large south-facing garden.',
         price: 1250000,
         listing_type: 'sale',
         property_type: 'House',
-        location: 'Cambridge (Newnham)',
+        location: 'Cambridge (CB3)',
         status: 'active',
-        seller_id: 'seller-3',
-        seller_name: 'Paul Taylor',
-        agent_id: 'agent-1',
-        created_at: '2026-11-14T16:00:00',
-        updated_at: '2026-11-16T11:00:00',
+        offersCount: 1,
       },
     ];
-    setProperties(demoProperties);
+    setProperties(sample);
   }, []);
 
   useEffect(() => {
@@ -131,168 +94,96 @@ export default function AgentPortfolioScreen({ currentSession }) {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadPortfolio();
-    setTimeout(() => setRefreshing(false), 500);
+    setTimeout(() => setRefreshing(false), 400);
   }, [loadPortfolio]);
 
-  const filteredProperties = filter === 'all'
-    ? properties
-    : properties.filter((p) => p.status === filter);
+  const filtered = filter === 'all' ? properties : properties.filter((p) => p.status === filter);
 
-  const statusCounts = properties.reduce((acc, p) => {
-    acc[p.status] = (acc[p.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  const formatPrice = (price, listingType) => {
-    if (listingType === 'rent') {
-      return `£${price.toLocaleString('en-GB')} / month`;
-    }
-    return `£${price.toLocaleString('en-GB')}`;
+  const statusLabel = {
+    draft: 'Draft',
+    active: 'Active',
+    under_offer: 'Under Offer',
+    sold: 'Sold',
+    rented: 'Rented',
   };
-
-  const filterButtons = [
-    { id: 'all', label: 'All', count: properties.length },
-    { id: 'draft', label: 'Drafts', count: statusCounts.draft || 0 },
-    { id: 'active', label: 'Active', count: statusCounts.active || 0 },
-    { id: 'under_offer', label: 'Under Offer', count: statusCounts.under_offer || 0 },
-    { id: 'sold', label: 'Sold', count: statusCounts.sold || 0 },
-    { id: 'rented', label: 'Rented', count: statusCounts.rented || 0 },
-  ];
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Text style={styles.brand}>HOLMIA</Text>
-        <Text style={styles.heading}>Agent Portfolio</Text>
-        <Text style={styles.subheading}>
-          Assigned Properties · {currentSession?.username || 'demo_agent'}
-        </Text>
-
-        {/* Summary Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{properties.length}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: '#2E7D32' }]}>
-              {statusCounts.active || 0}
-            </Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: '#E65100' }]}>
-              {statusCounts.under_offer || 0}
-            </Text>
-            <Text style={styles.statLabel}>Under Offer</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: '#757575' }]}>
-              {statusCounts.draft || 0}
-            </Text>
-            <Text style={styles.statLabel}>Drafts</Text>
-          </View>
+        {/* Figma Header (10 - My listings) */}
+        <View style={styles.headerRow}>
+          <Text style={styles.pageTitle}>My listings</Text>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.addIconBtn}
+            onPress={() => onAddProperty && onAddProperty()}
+          >
+            <Text style={styles.addIconText}>+</Text>
+          </Pressable>
         </View>
 
-        {/* Filter Buttons */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScrollView}
-          contentContainerStyle={styles.filterRow}
-        >
-          {filterButtons.map((btn) => (
+        {/* Filter Pills */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {['all', 'active', 'draft', 'under_offer', 'sold', 'rented'].map((st) => (
             <Pressable
-              key={btn.id}
-              style={[
-                styles.filterBtn,
-                filter === btn.id && styles.filterBtnActive,
-              ]}
-              onPress={() => setFilter(btn.id)}
+              key={st}
+              style={[styles.filterPill, filter === st && styles.filterPillActive]}
+              onPress={() => setFilter(st)}
             >
-              <Text
-                style={[
-                  styles.filterBtnText,
-                  filter === btn.id && styles.filterBtnTextActive,
-                ]}
-              >
-                {btn.label} ({btn.count})
+              <Text style={[styles.filterPillText, filter === st && styles.filterPillTextActive]}>
+                {st === 'all' ? 'All' : statusLabel[st]}
               </Text>
             </Pressable>
           ))}
         </ScrollView>
 
-        {/* Property List */}
-        {filteredProperties.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>No properties in this category</Text>
-          </View>
-        ) : (
-          filteredProperties.map((prop) => {
-            const st = statusConfig[prop.status] || statusConfig.draft;
-            return (
-              <View key={prop.id} style={styles.propertyCard}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-                    <Text style={styles.statusIcon}>{st.icon}</Text>
-                    <Text style={[styles.statusText, { color: st.color }]}>
-                      {st.label}
-                    </Text>
-                  </View>
-                  <Text style={styles.listingTypeBadge}>
-                    {listingTypeLabel[prop.listing_type]}
-                  </Text>
-                </View>
-
-                <Text style={styles.propertyTitle}>{prop.title}</Text>
-                <Text style={styles.propertyDesc} numberOfLines={2}>
-                  {prop.description}
-                </Text>
-
-                <View style={styles.propertyMeta}>
-                  <Text style={styles.metaItem}>📍 {prop.location}</Text>
-                  <Text style={styles.metaItem}>🏠 {prop.property_type}</Text>
-                </View>
-
-                <View style={styles.priceSellerRow}>
-                  <Text style={styles.priceText}>
-                    {formatPrice(prop.price, prop.listing_type)}
-                  </Text>
-                  <Text style={styles.sellerText}>
-                    👤 {prop.seller_name}
-                  </Text>
-                </View>
-
-                <Text style={styles.dateText}>
-                  Updated: {new Date(prop.updated_at).toLocaleDateString('en-GB')}
-                </Text>
+        {/* Property Cards matching Figma Wireframe 10 */}
+        {filtered.map((item) => (
+          <View key={item.id} style={styles.card}>
+            {/* Top Row: Property Name + Status Badge */}
+            <View style={styles.cardHeader}>
+              <Text style={styles.propertyName} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <View style={[styles.statusBadge, item.status === 'active' && styles.statusBadgeActive]}>
+                <Text style={styles.statusText}>{statusLabel[item.status] || item.status}</Text>
               </View>
-            );
-          })
-        )}
+            </View>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>📋 Features — Week 3</Text>
-          <Text style={styles.infoCardItem}>
-            • Agent views all assigned properties via{' '}
-            <Text style={styles.bold}>sessionService.getMyPortfolio()</Text>
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Status filtering (Draft, Active, Under Offer, Sold, Rented)
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Seller information and last updated timestamp
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Pull-to-refresh to reload portfolio
-          </Text>
-        </View>
+            {/* Subtitle: Price · Type · nb offers */}
+            <Text style={styles.propertySubtitle}>
+              £{Number(item.price).toLocaleString('en-GB')}
+              {item.listing_type === 'rent' ? '/mo' : ''} · {item.listing_type === 'sale' ? 'Sale' : 'Rent'} · {item.offersCount} offer{item.offersCount !== 1 ? 's' : ''}
+            </Text>
+
+            {/* Two Side-by-Side Action Buttons: Edit / Moderate */}
+            <View style={styles.cardActions}>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.actionBtn}
+                onPress={() => onEditProperty && onEditProperty(item)}
+              >
+                <Text style={styles.actionBtnText}>Edit</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.actionBtn}
+                onPress={() => onEditProperty && onEditProperty(item)}
+              >
+                <Text style={styles.actionBtnText}>Moderate</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+
+        {filtered.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No properties in this category.</Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -301,205 +192,129 @@ export default function AgentPortfolioScreen({ currentSession }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F6F5F0',
   },
   content: {
-    padding: 24,
-    paddingTop: 40,
-    paddingBottom: 60,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 40,
   },
-  brand: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: 3,
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.primary,
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  subheading: {
-    fontSize: 14,
-    color: colors.secondary,
-    marginBottom: 20,
-  },
-  statsRow: {
+  headerRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E7E3',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: colors.secondary,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  filterScrollView: {
     marginBottom: 16,
+  },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#2A2424',
+  },
+  addIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addIconText: {
+    fontSize: 30,
+    lineHeight: 32,
+    color: '#2A2424',
+    fontWeight: '400',
   },
   filterRow: {
     gap: 8,
-    paddingRight: 8,
+    paddingBottom: 16,
   },
-  filterBtn: {
-    backgroundColor: '#FFFFFF',
+  filterPill: {
     borderWidth: 1,
-    borderColor: '#CCD6D1',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    borderColor: '#2A2424',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: '#F6F5F0',
   },
-  filterBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  filterPillActive: {
+    backgroundColor: '#2A2424',
   },
-  filterBtnText: {
-    fontSize: 13,
-    color: colors.primary,
+  filterPillText: {
+    fontSize: 12,
+    color: '#2A2424',
     fontWeight: '500',
   },
-  filterBtnTextActive: {
+  filterPillTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 40,
-    alignItems: 'center',
+  // Figma Card (Wireframe 10)
+  card: {
     borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginBottom: 16,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 10,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: colors.secondary,
-    fontWeight: '600',
-  },
-  propertyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderColor: '#2A2424',
+    borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 14,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusIcon: {
-    fontSize: 14,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  listingTypeBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.secondary,
-    backgroundColor: '#F0F4F2',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  propertyTitle: {
+  propertyName: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
+    color: '#2A2424',
+    flex: 1,
+    marginRight: 8,
   },
-  propertyDesc: {
-    fontSize: 13,
-    color: colors.secondary,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  propertyMeta: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 8,
-  },
-  metaItem: {
-    fontSize: 13,
-    color: colors.secondary,
-  },
-  priceSellerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  priceText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  sellerText: {
-    fontSize: 13,
-    color: colors.secondary,
-    fontWeight: '500',
-  },
-  dateText: {
-    fontSize: 11,
-    color: '#999',
-    marginTop: 4,
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
+  statusBadge: {
     borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginTop: 10,
-    marginBottom: 40,
+    borderColor: '#2A2424',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    backgroundColor: '#FFFFFF',
   },
-  infoCardTitle: {
+  statusBadgeActive: {
+    backgroundColor: '#F6F5F0',
+  },
+  statusText: {
+    fontSize: 11,
+    color: '#2A2424',
+    fontWeight: '600',
+  },
+  propertySubtitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 8,
+    color: '#555555',
+    marginBottom: 14,
   },
-  infoCardItem: {
-    fontSize: 13,
-    color: colors.secondary,
-    lineHeight: 20,
-    marginBottom: 4,
+  cardActions: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  bold: {
-    fontWeight: '700',
+  actionBtn: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2A2424',
+  },
+  emptyContainer: {
+    padding: 30,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#666666',
+    fontSize: 14,
   },
 });
-
