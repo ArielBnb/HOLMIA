@@ -9,10 +9,35 @@ import { authStyles as s } from '../styles/authTheme';
 // No Buyer/Seller/Agent screens exist on main yet. Preserve the catalogue as their
 // shared temporary content; the keyed destinations are ready for the team's screens.
 const destination = { buyer: 'Browse', seller: 'My listings', agent: 'Dashboard & stats' };
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import EmailConfirmationScreen from '../screens/EmailConfirmationScreen';
+import DatabaseTestScreen from '../screens/DatabaseTestScreen';
+import AgentPortfolioScreen from '../screens/AgentPortfolioScreen';
+import AgentModerationScreen from '../screens/AgentModerationScreen';
+import PropertyLifecycleScreen from '../screens/PropertyLifecycleScreen';
+import { authStyles as s } from '../styles/authTheme';
+
 function RoleHome({ profile }) {
   const { signOut } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  
+  // Default to portfolio for agent, catalogue for buyer/seller
+  const [activeTab, setActiveTab] = useState(profile.role === 'agent' ? 'portfolio' : 'catalogue');
+
+  const tabs = profile.role === 'agent' ? [
+    { id: 'portfolio', label: 'Portfolio', icon: '💼' },
+    { id: 'moderation', label: 'Moderation', icon: '✏️' },
+    { id: 'lifecycle', label: 'Lifecycle', icon: '🔄' },
+    { id: 'catalogue', label: 'Catalogue', icon: '🏠' },
+  ] : [
+    { id: 'catalogue', label: 'Catalogue', icon: '🏠' },
+    { id: 'lifecycle', label: 'Lifecycle', icon: '🔄' },
+  ];
 
   async function handleLogout() {
     if (busy) return;
@@ -29,31 +54,69 @@ function RoleHome({ profile }) {
 
   return (
     <View style={s.page} testID={`home-${profile.role}`}>
-      <View style={{ paddingHorizontal: 24, paddingTop: 52, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Top Header */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 52, paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>{destination[profile.role] || 'Welcome'}</Text>
-          <Text style={{ fontSize: 13, color: '#666', marginTop: 2 }}>
-            {profile.full_name || profile.username || 'User'} ({profile.role})
+          <Text style={{ fontSize: 22, fontWeight: '800', color: '#B6311E', letterSpacing: 1 }}>HOLMIA</Text>
+          <Text style={{ fontSize: 13, color: '#555', marginTop: 2 }}>
+            👤 {profile.full_name || profile.username || 'User'} · <Text style={{ fontWeight: '700', textTransform: 'capitalize' }}>{profile.role}</Text>
           </Text>
         </View>
         <Pressable
           accessibilityRole="button"
           onPress={handleLogout}
           disabled={busy}
-          style={{ backgroundColor: '#B6311E', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, minWidth: 80, alignItems: 'center' }}
+          style={{ backgroundColor: '#B6311E', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
         >
-          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
+          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
             {busy ? '...' : 'Logout'}
           </Text>
         </Pressable>
       </View>
+
+      {/* Navigation Tabs */}
+      <View style={{ borderBottomWidth: 1, borderColor: '#E5E0D8', paddingBottom: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                onPress={() => setActiveTab(tab.id)}
+                style={{
+                  paddingVertical: 7,
+                  paddingHorizontal: 15,
+                  borderRadius: 18,
+                  backgroundColor: isActive ? '#B6311E' : '#EAE7DF',
+                }}
+              >
+                <Text style={{
+                  fontWeight: '700',
+                  fontSize: 13,
+                  color: isActive ? '#FFFFFF' : '#2A2424',
+                }}>
+                  {tab.icon} {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       {profile.requested_role && profile.requested_role !== profile.role && (
-        <Text style={[s.link, { paddingHorizontal: 24, color: '#E65100', marginBottom: 8, textAlign: 'left' }]}>
+        <Text style={[s.link, { paddingHorizontal: 20, color: '#E65100', marginVertical: 4, textAlign: 'left', fontSize: 12 }]}>
           {profile.requested_role} access requested — awaiting approval.
         </Text>
       )}
-      {error ? <Text accessibilityRole="alert" style={[s.error, { paddingHorizontal: 24, marginBottom: 8 }]}>{error}</Text> : null}
-      <DatabaseTestScreen />
+      {error ? <Text accessibilityRole="alert" style={[s.error, { paddingHorizontal: 20, marginVertical: 4 }]}>{error}</Text> : null}
+
+      {/* Active Screen Content */}
+      <View style={{ flex: 1 }}>
+        {activeTab === 'portfolio' && <AgentPortfolioScreen currentSession={profile} />}
+        {activeTab === 'moderation' && <AgentModerationScreen currentSession={profile} />}
+        {activeTab === 'lifecycle' && <PropertyLifecycleScreen currentSession={profile} />}
+        {activeTab === 'catalogue' && <DatabaseTestScreen />}
+      </View>
     </View>
   );
 }
