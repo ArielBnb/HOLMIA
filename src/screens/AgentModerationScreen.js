@@ -256,7 +256,7 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     paddingHorizontal: 24,
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 14,
     color: '#2A2424',
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   textarea: {
     height: 90,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   togglePillActive: {
     backgroundColor: '#FFFFFF',
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   typePillActive: {
     backgroundColor: '#2A2424',

@@ -150,7 +150,7 @@ export default function AuthNavigator() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   profileContainer: {
     flex: 1,
     padding: 24,
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   profileTitle: {
     fontSize: 26,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     height: 54,
     borderTopWidth: 1,
     borderTopColor: '#2A2424',
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'space-around',
     alignItems: 'center',
   },

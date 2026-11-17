@@ -207,7 +207,7 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     paddingHorizontal: 24,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   filterPillActive: {
     backgroundColor: '#2A2424',
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   statusBadgeActive: {
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#EBE8DF',
   },
   statusText: {
     fontSize: 11,

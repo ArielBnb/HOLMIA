@@ -442,7 +442,7 @@ export default function PropertyLifecycleScreen({ currentSession, onBack }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     paddingHorizontal: 24,
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A2424',
     borderRadius: 8,
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   statusBadgeActive: {
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#EBE8DF',
   },
   statusBadgeText: {
     fontSize: 11,
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   },
   terminalBox: {
     padding: 10,
-    backgroundColor: '#F6F5F0',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#2A2424',
