@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSupabase, isSupabaseConfigured, watchAuthRefresh } from '../config/supabase';
 const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
@@ -39,10 +41,21 @@ export function AuthProvider({ children }) {
     return () => { disposed = true; invalidate(); subscription.unsubscribe(); stopRefresh(); };
   }, [loadSession]);
   const signOut = useCallback(async () => {
-    const { error } = await getSupabase().auth.signOut();
-    if (error) throw error;
-    await loadSession(null);
-  }, [loadSession]);
+    try {
+      await getSupabase().auth.signOut();
+    } catch (err) {
+      console.warn('Supabase signOut warning:', err);
+    } finally {
+      try {
+        if (Platform.OS !== 'web') {
+          await AsyncStorage.clear();
+        }
+      } catch (storageErr) {
+        console.warn('AsyncStorage clear warning:', storageErr);
+      }
+      setState({ session: null, profile: null, loading: false, error: '' });
+    }
+  }, []);
   return <AuthContext.Provider value={{ ...state, signOut, retry: () => loadSession(state.session) }}>{children}</AuthContext.Provider>;
 }
 export function useAuth() { return useContext(AuthContext); }

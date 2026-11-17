@@ -10,16 +10,52 @@ import { authStyles as s } from '../styles/authTheme';
 // shared temporary content; the keyed destinations are ready for the team's screens.
 const destination = { buyer: 'Browse', seller: 'My listings', agent: 'Dashboard & stats' };
 function RoleHome({ profile }) {
-  const { signOut } = useAuth(); const [error, setError] = useState('');
-  return <View style={s.page} testID={`home-${profile.role}`}>
-    <View style={{ paddingHorizontal: 32, paddingTop: 48, gap: 10 }}>
-      <Text style={s.title}>{destination[profile.role]}</Text>
-      {profile.requested_role !== profile.role && <Text style={s.link}>{profile.requested_role} access requested — awaiting approval.</Text>}
-      <Pressable accessibilityRole="button" onPress={() => signOut().catch(f => setError(f.message))}><Text style={s.link}>Logout</Text></Pressable>
-      {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
+  const { signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleLogout() {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await signOut();
+    } catch (f) {
+      setError(f.message || 'Logout failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={s.page} testID={`home-${profile.role}`}>
+      <View style={{ paddingHorizontal: 24, paddingTop: 52, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.title}>{destination[profile.role] || 'Welcome'}</Text>
+          <Text style={{ fontSize: 13, color: '#666', marginTop: 2 }}>
+            {profile.full_name || profile.username || 'User'} ({profile.role})
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={handleLogout}
+          disabled={busy}
+          style={{ backgroundColor: '#B6311E', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, minWidth: 80, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
+            {busy ? '...' : 'Logout'}
+          </Text>
+        </Pressable>
+      </View>
+      {profile.requested_role && profile.requested_role !== profile.role && (
+        <Text style={[s.link, { paddingHorizontal: 24, color: '#E65100', marginBottom: 8, textAlign: 'left' }]}>
+          {profile.requested_role} access requested — awaiting approval.
+        </Text>
+      )}
+      {error ? <Text accessibilityRole="alert" style={[s.error, { paddingHorizontal: 24, marginBottom: 8 }]}>{error}</Text> : null}
+      <DatabaseTestScreen />
     </View>
-    <DatabaseTestScreen />
-  </View>;
+  );
 }
 export default function AuthNavigator() {
   const { session, profile, loading, error, retry, signOut } = useAuth();
