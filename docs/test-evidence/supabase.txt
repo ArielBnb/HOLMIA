@@ -1,0 +1,30 @@
+(node:6) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/8c84b6b67ec1/HOLMIA/src/services/buyerFilters.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/8c84b6b67ec1/HOLMIA/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Live Supabase returns persisted active properties
+PASS Quick sale
+PASS Quick rent
+PASS Text search "Paris"
+PASS Text search "maison"
+PASS Text search "Lille"
+PASS Text search "zzzz-no-property"
+PASS Text search "%,_\"()\\"
+PASS Live filters {"minPrice":"1000"}
+PASS Live filters {"maxPrice":"2000"}
+PASS Live filters {"minPrice":"650","maxPrice":"1150"}
+PASS Live filters {"location":"lille"}
+PASS Live filters {"propertyTypes":["house"]}
+PASS Live filters {"propertyTypes":["flat","studio"]}
+PASS Live filters {"propertyTypes":["other"]}
+PASS Live filters {"listingTypes":["sale"]}
+PASS Live filters {"listingTypes":["rent"]}
+PASS Live filters {"listingTypes":["sale","rent"]}
+PASS Live filters {"minPrice":"600","maxPrice":"1500","propertyTypes":["studio","flat"],"listingTypes":["rent"],"location":"France"}
+PASS Contradictory quick and advanced filters return empty
+PASS Reset filter values restore full result
+PASS Invalid and inverted prices rejected; zero and decimals accepted
+PASS Every detail UUID matches catalogue and sale/rent price formatting
+PASS RLS hides profiles from anonymous client
+PASS RLS denies anonymous listing insertion
+25 checks passed; no existing row modified.

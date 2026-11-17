@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, Pressable, SafeAreaView } from 'react-native';
 import LoginScreen from './src/screens/LoginScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
-import DatabaseTestScreen from './src/screens/DatabaseTestScreen';
+import BuyerNavigator from './src/navigation/BuyerNavigator';
 import RoleAccessScreen from './src/screens/RoleAccessScreen';
 import AgentPortfolioScreen from './src/screens/AgentPortfolioScreen';
 import AgentModerationScreen from './src/screens/AgentModerationScreen';
@@ -46,7 +46,7 @@ export default function App() {
       case 'welcome':
         return <WelcomeScreen />;
       case 'catalog':
-        return <DatabaseTestScreen />;
+        return <BuyerNavigator onProfile={() => setActiveTab('login')} />;
       case 'roles':
         return (
           <RoleAccessScreen
@@ -82,7 +82,7 @@ export default function App() {
       </View>
 
       {/* Barre de navigation basse pour Expo Go */}
-      <View style={styles.navBar}>
+      <View style={[styles.navBar, activeTab === 'catalog' && { display: 'none' }]}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (

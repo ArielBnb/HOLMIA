@@ -1,0 +1,12 @@
+PASS DOM: app mounted and live catalogue loaded
+PASS DOM: rental details correct
+PASS DOM: sale details correct
+PASS DOM: Sale quick filter
+PASS DOM: Rent quick filter
+PASS DOM: text search
+PASS DOM: empty results
+PASS DOM: invalid price rejected
+PASS DOM: Apply combines price, location, property type and rent
+PASS DOM: filters retained on reopening
+PASS DOM: Reset and Apply restore complete catalogue
+PASS DOM: no JavaScript runtime error

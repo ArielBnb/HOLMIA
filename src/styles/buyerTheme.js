@@ -1,0 +1,57 @@
+import { StyleSheet } from "react-native";
+export const buyerColors = {
+  background: "#F6F5F0",
+  red: "#B6311E",
+  text: "#2A2424",
+  border: "#2A2424",
+  image: "#F0E2DB",
+};
+export const buyerStyles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: buyerColors.background },
+  content: {
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 28,
+    gap: 12,
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
+  },
+  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  heading: { fontSize: 21, fontWeight: "700", color: buyerColors.text },
+  text: { color: buyerColors.text, fontSize: 15 },
+  label: { color: buyerColors.text, fontSize: 14 },
+  input: {
+    borderWidth: 1,
+    borderColor: buyerColors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    height: 48,
+    fontSize: 14,
+    color: buyerColors.text,
+  },
+  button: {
+    borderWidth: 1,
+    borderColor: buyerColors.border,
+    borderRadius: 8,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  primary: {
+    backgroundColor: buyerColors.red,
+    borderColor: buyerColors.red,
+    minHeight: 52,
+  },
+  primaryText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  error: { color: "#9E2418", fontSize: 14 },
+  badge: {
+    borderWidth: 1,
+    borderColor: buyerColors.border,
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    alignSelf: "flex-start",
+  },
+});
