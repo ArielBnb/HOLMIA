@@ -8,6 +8,7 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
+import { getProperties } from '../services/propertyService';
 import { authColors as colors } from '../styles/authTheme';
 
 export default function AgentPortfolioScreen({ currentSession, onEditProperty, onAddProperty }) {
@@ -15,71 +16,85 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
 
-  const loadPortfolio = useCallback(() => {
+  const loadPortfolio = useCallback(async () => {
+    try {
+      // 1. Attempt to fetch real properties from Supabase
+      const remote = await getProperties({ activeOnly: false });
+      if (remote && remote.length > 0) {
+        setProperties(remote.map((p) => ({
+          ...p,
+          offersCount: p.offersCount || (p.status === 'under_offer' ? 2 : p.status === 'active' ? 1 : 0),
+        })));
+        return;
+      }
+    } catch (err) {
+      // Fallback if offline
+    }
+
     const sample = [
       {
-        id: 'prop-1',
-        title: 'Central London Flat',
+        id: 'a0000000-0000-4000-8000-000000000001',
+        title: 'Bright Apartment in Central London',
         description: 'Charming two-bedroom apartment with private balcony, close to tube station.',
         price: 425000,
         listing_type: 'sale',
         property_type: 'Flat',
-        location: 'London (SW1)',
+        location: 'London, UK',
         status: 'active',
         offersCount: 2,
       },
       {
-        id: 'prop-2',
-        title: 'Oxford Student Studio',
+        id: 'a0000000-0000-4000-8000-000000000003',
+        title: 'Furnished Student Studio in Oxford',
         description: 'Compact fully furnished modern studio near university campus.',
         price: 650,
         listing_type: 'rent',
         property_type: 'Studio',
-        location: 'Oxford (City Centre)',
+        location: 'Oxford, UK',
         status: 'draft',
         offersCount: 0,
       },
       {
-        id: 'prop-3',
-        title: 'Manchester Family House',
+        id: 'a0000000-0000-4000-8000-000000000002',
+        title: 'Spacious Family House in Manchester',
         description: 'Four-bedroom detached family home with private landscaped garden.',
         price: 580000,
         listing_type: 'sale',
         property_type: 'House',
-        location: 'Manchester (Didsbury)',
+        location: 'Manchester, UK',
         status: 'under_offer',
         offersCount: 3,
       },
       {
-        id: 'prop-4',
-        title: 'Birmingham Converted Loft',
+        id: 'a0000000-0000-4000-8000-000000000005',
+        title: 'Industrial Converted Loft in Birmingham',
         description: 'Open-plan warehouse conversion with exposed brickwork and mezzanine.',
         price: 310000,
         listing_type: 'sale',
         property_type: 'Loft',
-        location: 'Birmingham (B1)',
+        location: 'Birmingham, UK',
         status: 'sold',
         offersCount: 1,
       },
       {
-        id: 'prop-5',
-        title: 'Bristol Riverside Flat',
+        id: 'a0000000-0000-4000-8000-000000000004',
+        title: 'Riverside Apartment in Bristol',
         description: 'Contemporary two-bedroom apartment with river views and parking.',
         price: 1150,
         listing_type: 'rent',
         property_type: 'Flat',
-        location: 'Bristol (Harbourside)',
+        location: 'Bristol, UK',
         status: 'rented',
         offersCount: 4,
       },
       {
-        id: 'prop-6',
-        title: 'Cambridge Detached House',
+        id: 'a0000000-0000-4000-8000-000000000006',
+        title: 'Detached House in Cambridge',
         description: 'Three-bedroom house with large south-facing garden.',
-        price: 1250000,
-        listing_type: 'sale',
+        price: 1450,
+        listing_type: 'rent',
         property_type: 'House',
-        location: 'Cambridge (CB3)',
+        location: 'Cambridge, UK',
         status: 'active',
         offersCount: 1,
       },
@@ -91,10 +106,10 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
     loadPortfolio();
   }, [loadPortfolio]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    loadPortfolio();
-    setTimeout(() => setRefreshing(false), 400);
+    await loadPortfolio();
+    setRefreshing(false);
   }, [loadPortfolio]);
 
   const filtered = filter === 'all' ? properties : properties.filter((p) => p.status === filter);

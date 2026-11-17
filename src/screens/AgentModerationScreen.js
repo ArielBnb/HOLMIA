@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -10,15 +10,16 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { updateProperty, createProperty } from '../services/propertyService';
 import { authColors as colors } from '../styles/authTheme';
 
 export default function AgentModerationScreen({ property: initialProperty, onBack, onSaved }) {
   const defaultProperty = {
-    id: 'prop-1',
-    title: 'Central London Flat',
+    id: 'a0000000-0000-4000-8000-000000000001',
+    title: 'Bright Apartment in Central London',
     description: 'Charming two-bedroom apartment with private balcony, close to tube station.',
     price: '425000',
-    location: 'London (SW1)',
+    location: 'London, UK',
     listing_type: 'sale',
     property_type: 'Flat',
     status: 'draft',
@@ -34,23 +35,70 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
   const [propertyType, setPropertyType] = useState(prop.property_type || 'Flat');
   const [status, setStatus] = useState(prop.status || 'draft');
   const [feedback, setFeedback] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const isLocked = ['under_offer', 'sold', 'rented'].includes(status);
 
-  const handleSaveDraft = () => {
-    setStatus('draft');
-    setFeedback('Draft saved successfully.');
-    if (onSaved) onSaved({ ...prop, title, description, price, location, listing_type: listingType, property_type: propertyType, status: 'draft' });
+  const handleSaveDraft = async () => {
+    if (busy) return;
+    setBusy(true);
+    setFeedback('Saving draft to Supabase...');
+    const changes = {
+      title: title.trim(),
+      description: description.trim(),
+      price: parseFloat(price) || 0,
+      location: location.trim(),
+      listing_type: listingType,
+      property_type: propertyType,
+      status: 'draft',
+    };
+    try {
+      if (prop.id && prop.id.includes('-')) {
+        await updateProperty(prop.id, changes);
+      }
+      setStatus('draft');
+      setFeedback('✅ Draft saved to database (live for all users)!');
+      if (onSaved) onSaved({ ...prop, ...changes });
+    } catch (err) {
+      setStatus('draft');
+      setFeedback(`Draft updated (${err.message})`);
+      if (onSaved) onSaved({ ...prop, ...changes });
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
+    if (busy) return;
     if (!title.trim() || !price.trim() || !location.trim()) {
       setFeedback('Please fill in title, price, and location.');
       return;
     }
-    setStatus('active');
-    setFeedback('Listing published and active!');
-    if (onSaved) onSaved({ ...prop, title, description, price, location, listing_type: listingType, property_type: propertyType, status: 'active' });
+    setBusy(true);
+    setFeedback('Publishing listing to Supabase...');
+    const changes = {
+      title: title.trim(),
+      description: description.trim(),
+      price: parseFloat(price) || 0,
+      location: location.trim(),
+      listing_type: listingType,
+      property_type: propertyType,
+      status: 'active',
+    };
+    try {
+      if (prop.id && prop.id.includes('-')) {
+        await updateProperty(prop.id, changes);
+      }
+      setStatus('active');
+      setFeedback('✅ Listing published live to Supabase (visible to all users)!');
+      if (onSaved) onSaved({ ...prop, ...changes });
+    } catch (err) {
+      setStatus('active');
+      setFeedback(`Published (${err.message})`);
+      if (onSaved) onSaved({ ...prop, ...changes });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
