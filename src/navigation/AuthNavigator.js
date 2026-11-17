@@ -1,15 +1,4 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import LoginScreen from '../screens/LoginScreen';
-import RegisterScreen from '../screens/RegisterScreen';
-import EmailConfirmationScreen from '../screens/EmailConfirmationScreen';
-import DatabaseTestScreen from '../screens/DatabaseTestScreen';
-import { authStyles as s } from '../styles/authTheme';
-// No Buyer/Seller/Agent screens exist on main yet. Preserve the catalogue as their
-// shared temporary content; the keyed destinations are ready for the team's screens.
-const destination = { buyer: 'Browse', seller: 'My listings', agent: 'Dashboard & stats' };
-import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
