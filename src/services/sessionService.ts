@@ -303,6 +303,35 @@ export class SessionService {
     return this.offerRepo.acceptOffer(offerId, user.id);
   }
 
+  /**
+   * Reject an offer on a property:
+   * - Permitted ONLY to owning Seller or assigned Agent
+   * - Only pending offers; the property status is unchanged
+   */
+  public rejectOffer(offerId: string): Offer {
+    const user = this.requireRole(['seller', 'agent']);
+
+    const offer = this.offerRepo.findById(offerId);
+    if (!offer) {
+      throw new Error(`Offer '${offerId}' not found`);
+    }
+
+    const prop = this.propertyRepo.findById(offer.property_id);
+    if (!prop) {
+      throw new Error(`Property '${offer.property_id}' not found`);
+    }
+
+    if (user.role === 'seller' && prop.seller_id !== user.id) {
+      throw new AccessDeniedError('Seller can only reject offers on their own properties');
+    }
+
+    if (user.role === 'agent' && prop.agent_id !== user.id) {
+      throw new AccessDeniedError('Agent can only reject offers on assigned properties');
+    }
+
+    return this.offerRepo.rejectOffer(offerId);
+  }
+
   // ==========================================
   // Role-Based Rental Application Operations
   // ==========================================
