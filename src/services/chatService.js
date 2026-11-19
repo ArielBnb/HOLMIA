@@ -170,6 +170,53 @@ async function syncFromSupabase(convs) {
         });
       }
     });
+
+    // Also bridge messages from public.property_messages (created for Seller representation)
+    try {
+      const { data: propMsgs } = await supabase
+        .from('property_messages')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (propMsgs && propMsgs.length > 0) {
+        propMsgs.forEach((pm) => {
+          let targetConv = convs.find(
+            (c) => c.propertyId === pm.property_id || c.id.includes(pm.property_id)
+          );
+          if (!targetConv) {
+            targetConv = {
+              id: `conv-${pm.property_id}-agent_seller`,
+              propertyId: pm.property_id,
+              propertyTitle: 'Property Discussion',
+              hasAgent: true,
+              channelType: 'agent_seller',
+              participants: {
+                sellerName: 'Seller',
+                agentName: 'Agent',
+                buyerName: 'Buyer',
+              },
+              messages: [],
+            };
+            convs.unshift(targetConv);
+          }
+
+          const alreadyPresent = targetConv.messages.some(
+            (m) => m.id === pm.id || m.text === pm.body
+          );
+          if (!alreadyPresent) {
+            const d = new Date(pm.created_at);
+            const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+            targetConv.messages.push({
+              id: pm.id,
+              senderRole: 'seller',
+              senderName: 'Seller',
+              text: pm.body,
+              timestamp: timeStr,
+            });
+          }
+        });
+      }
+    } catch (e) {}
   } catch (err) {
     // Graceful fallback if table not yet created
   }
@@ -325,6 +372,23 @@ export async function sendMessage(conversationId, { senderRole, senderName, text
 
       if (data && data.id) {
         assignedId = data.id;
+      }
+
+      // Also mirror to public.property_messages if propertyId is a valid UUID
+      if (conv.propertyId && conv.propertyId.includes('-')) {
+        const recipientId =
+          senderRole === 'agent'
+            ? conv.participants?.sellerId || 'a0000000-0000-4000-8000-000000000001'
+            : conv.participants?.agentId || 'a0000000-0000-4000-8000-000000000002';
+        supabase
+          .from('property_messages')
+          .insert({
+            property_id: conv.propertyId,
+            recipient_id: recipientId,
+            body: text.trim(),
+          })
+          .then(() => {})
+          .catch(() => {});
       }
     } catch (err) {
       console.warn('Supabase remote insert fallback to local:', err);
