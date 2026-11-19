@@ -14,6 +14,7 @@ import { authColors as colors } from '../styles/authTheme';
 import {
   getConversationsForRole,
   sendMessage,
+  subscribeToRealtimeMessages,
 } from '../services/chatService';
 
 export default function MessagesScreen({ currentSession, initialConversationId, onBackToNav }) {
@@ -37,6 +38,13 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
 
   useEffect(() => {
     fetchConversations();
+    // Subscribe to live multi-device Supabase Realtime messages
+    const unsubscribe = subscribeToRealtimeMessages((remoteMsg) => {
+      fetchConversations();
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [role, initialConversationId]);
 
   const handleSelectConversation = (conv) => {
