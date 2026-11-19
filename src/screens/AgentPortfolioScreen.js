@@ -8,291 +8,256 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
-import { colors } from '../styles/theme';
+import { getProperties } from '../services/propertyService';
+import { authColors as colors } from '../styles/authTheme';
 
-// Status display helpers
-const statusConfig = {
-  draft:       { label: 'Brouillon',    color: '#757575', bg: '#EEEEEE', icon: '📝' },
-  active:      { label: 'Actif',        color: '#2E7D32', bg: '#E8F5E9', icon: '✅' },
-  under_offer: { label: 'Sous offre',   color: '#E65100', bg: '#FFF3E0', icon: '🤝' },
-  sold:        { label: 'Vendu',        color: '#1565C0', bg: '#E3F2FD', icon: '🏷️' },
-  rented:      { label: 'Loué',         color: '#6A1B9A', bg: '#F3E5F5', icon: '🔑' },
-};
-
-const listingTypeLabel = { sale: 'Vente', rent: 'Location' };
-
-export default function AgentPortfolioScreen({ currentSession }) {
-  // Demo data simulating sessionService.getMyPortfolio() for agent
+export default function AgentPortfolioScreen({
+  currentSession,
+  onEditProperty,
+  onAddProperty,
+  onOpenChat,
+}) {
+  const userRole = currentSession?.role || 'seller';
   const [properties, setProperties] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState('all'); // all | draft | active | under_offer | sold | rented
+  const [filter, setFilter] = useState('all');
 
-  const loadPortfolio = useCallback(() => {
-    // Simulated data — in production, calls sessionService.getMyPortfolio()
-    const demoProperties = [
+  const loadPortfolio = useCallback(async () => {
+    try {
+      const remote = await getProperties({ activeOnly: false });
+      if (remote && remote.length > 0) {
+        setProperties(
+          remote.map((p) => ({
+            ...p,
+            offersCount:
+              p.offersCount ||
+              (p.status === 'under_offer' ? 2 : p.status === 'active' ? 1 : 0),
+          }))
+        );
+        return;
+      }
+    } catch (err) {
+      // Fallback
+    }
+
+    const sample = [
       {
-        id: 'prop-1',
-        title: 'Appartement Haussmannien Paris 8e',
-        description: 'Superbe appartement de 120m² avec vue sur les Champs-Élysées.',
-        price: 850000,
+        id: 'a0000000-0000-4000-8000-000000000001',
+        title: 'Bright Apartment in Central London',
+        description: 'Charming two-bedroom apartment with private balcony, close to tube station.',
+        price: 425000,
         listing_type: 'sale',
-        property_type: 'Appartement',
-        location: 'Paris 8e',
+        property_type: 'Flat',
+        location: 'London, UK',
         status: 'active',
-        seller_id: 'seller-1',
-        seller_name: 'Marie Dupont',
-        agent_id: 'agent-1',
-        created_at: '2026-11-10T10:00:00',
-        updated_at: '2026-11-15T14:30:00',
+        agent_id: 'user-agent-1', // Represented
+        offersCount: 2,
       },
       {
-        id: 'prop-2',
-        title: 'Studio meublé Lyon 3e',
-        description: 'Studio de 28m² idéalement situé près de la gare Part-Dieu.',
+        id: 'a0000000-0000-4000-8000-000000000002',
+        title: 'Spacious Family House in Manchester',
+        description: 'Four-bedroom detached family home with private landscaped garden. Direct from owner.',
+        price: 580000,
+        listing_type: 'sale',
+        property_type: 'House',
+        location: 'Manchester, UK',
+        status: 'under_offer',
+        agent_id: null, // NO AGENT - Direct Seller!
+        offersCount: 3,
+      },
+      {
+        id: 'a0000000-0000-4000-8000-000000000003',
+        title: 'Furnished Student Studio in Oxford',
+        description: 'Compact fully furnished modern studio near university campus.',
         price: 650,
         listing_type: 'rent',
         property_type: 'Studio',
-        location: 'Lyon 3e',
+        location: 'Oxford, UK',
         status: 'draft',
-        seller_id: 'seller-2',
-        seller_name: 'Jean Martin',
-        agent_id: 'agent-1',
-        created_at: '2026-11-12T09:00:00',
-        updated_at: '2026-11-12T09:00:00',
+        agent_id: 'user-agent-1', // Represented
+        offersCount: 0,
       },
       {
-        id: 'prop-3',
-        title: 'Maison familiale Bordeaux',
-        description: 'Maison de 200m² avec jardin, 4 chambres.',
-        price: 420000,
-        listing_type: 'sale',
-        property_type: 'Maison',
-        location: 'Bordeaux Caudéran',
-        status: 'under_offer',
-        seller_id: 'seller-1',
-        seller_name: 'Marie Dupont',
-        agent_id: 'agent-1',
-        created_at: '2026-11-08T11:30:00',
-        updated_at: '2026-11-16T16:00:00',
+        id: 'a0000000-0000-4000-8000-000000000004',
+        title: 'Riverside Apartment in Bristol',
+        description: 'Contemporary two-bedroom apartment with river views and parking.',
+        price: 1150,
+        listing_type: 'rent',
+        property_type: 'Flat',
+        location: 'Bristol, UK',
+        status: 'rented',
+        agent_id: null, // Direct Seller
+        offersCount: 4,
       },
       {
-        id: 'prop-4',
-        title: 'Loft industriel Marseille',
-        description: 'Loft de 150m² rénové dans un ancien entrepôt.',
+        id: 'a0000000-0000-4000-8000-000000000005',
+        title: 'Industrial Converted Loft in Birmingham',
+        description: 'Open-plan warehouse conversion with exposed brickwork and mezzanine.',
         price: 310000,
         listing_type: 'sale',
         property_type: 'Loft',
-        location: 'Marseille Joliette',
+        location: 'Birmingham, UK',
         status: 'sold',
-        seller_id: 'seller-3',
-        seller_name: 'Paul Leroy',
-        agent_id: 'agent-1',
-        created_at: '2026-10-20T08:00:00',
-        updated_at: '2026-11-14T10:00:00',
-      },
-      {
-        id: 'prop-5',
-        title: 'T3 lumineux Toulouse',
-        description: 'Appartement T3 de 72m² avec balcon et parking.',
-        price: 890,
-        listing_type: 'rent',
-        property_type: 'Appartement',
-        location: 'Toulouse Capitole',
-        status: 'rented',
-        seller_id: 'seller-2',
-        seller_name: 'Jean Martin',
-        agent_id: 'agent-1',
-        created_at: '2026-10-25T14:00:00',
-        updated_at: '2026-11-10T09:30:00',
-      },
-      {
-        id: 'prop-6',
-        title: 'Villa contemporaine Nice',
-        description: 'Villa de 250m² avec piscine et vue mer.',
-        price: 1250000,
-        listing_type: 'sale',
-        property_type: 'Villa',
-        location: 'Nice Colline',
-        status: 'active',
-        seller_id: 'seller-3',
-        seller_name: 'Paul Leroy',
-        agent_id: 'agent-1',
-        created_at: '2026-11-14T16:00:00',
-        updated_at: '2026-11-16T11:00:00',
+        agent_id: 'user-agent-1',
+        offersCount: 1,
       },
     ];
-    setProperties(demoProperties);
+    setProperties(sample);
   }, []);
 
   useEffect(() => {
     loadPortfolio();
   }, [loadPortfolio]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    loadPortfolio();
-    setTimeout(() => setRefreshing(false), 500);
+    await loadPortfolio();
+    setRefreshing(false);
   }, [loadPortfolio]);
 
-  const filteredProperties = filter === 'all'
-    ? properties
-    : properties.filter((p) => p.status === filter);
-
-  const statusCounts = properties.reduce((acc, p) => {
-    acc[p.status] = (acc[p.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  const formatPrice = (price, listingType) => {
-    if (listingType === 'rent') {
-      return `${price.toLocaleString('fr-FR')} €/mois`;
-    }
-    return `${price.toLocaleString('fr-FR')} €`;
+  const handleDelete = (id) => {
+    setProperties((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const filterButtons = [
-    { id: 'all', label: 'Tous', count: properties.length },
-    { id: 'draft', label: 'Brouillons', count: statusCounts.draft || 0 },
-    { id: 'active', label: 'Actifs', count: statusCounts.active || 0 },
-    { id: 'under_offer', label: 'Sous offre', count: statusCounts.under_offer || 0 },
-    { id: 'sold', label: 'Vendus', count: statusCounts.sold || 0 },
-    { id: 'rented', label: 'Loués', count: statusCounts.rented || 0 },
-  ];
+  const filtered = filter === 'all' ? properties : properties.filter((p) => p.status === filter);
+
+  const statusLabel = {
+    draft: 'Draft',
+    active: 'Active',
+    under_offer: 'Under Offer',
+    sold: 'Sold',
+    rented: 'Rented',
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Text style={styles.brand}>HOLMIA</Text>
-        <Text style={styles.heading}>Portefeuille Agent</Text>
-        <Text style={styles.subheading}>
-          Biens assignés · {currentSession?.username || 'demo_agent'}
-        </Text>
-
-        {/* Summary Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{properties.length}</Text>
-            <Text style={styles.statLabel}>Total biens</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: '#2E7D32' }]}>
-              {statusCounts.active || 0}
+        {/* Figma Header (Screen 10 - My listings) */}
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.pageTitle}>My listings</Text>
+            <Text style={styles.roleSubTitle}>
+              {userRole === 'seller' ? 'Seller Portfolio' : 'Agent Assigned Portfolio'}
             </Text>
-            <Text style={styles.statLabel}>Actifs</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: '#E65100' }]}>
-              {statusCounts.under_offer || 0}
-            </Text>
-            <Text style={styles.statLabel}>Sous offre</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: '#757575' }]}>
-              {statusCounts.draft || 0}
-            </Text>
-            <Text style={styles.statLabel}>Brouillons</Text>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.addIconBtn}
+            onPress={() => onAddProperty && onAddProperty()}
+          >
+            <Text style={styles.addIconText}>+</Text>
+          </Pressable>
         </View>
 
-        {/* Filter Buttons */}
+        {/* Filter Pills */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.filterScrollView}
           contentContainerStyle={styles.filterRow}
         >
-          {filterButtons.map((btn) => (
+          {['all', 'active', 'draft', 'under_offer', 'sold', 'rented'].map((st) => (
             <Pressable
-              key={btn.id}
-              style={[
-                styles.filterBtn,
-                filter === btn.id && styles.filterBtnActive,
-              ]}
-              onPress={() => setFilter(btn.id)}
+              key={st}
+              style={[styles.filterPill, filter === st && styles.filterPillActive]}
+              onPress={() => setFilter(st)}
             >
-              <Text
-                style={[
-                  styles.filterBtnText,
-                  filter === btn.id && styles.filterBtnTextActive,
-                ]}
-              >
-                {btn.label} ({btn.count})
+              <Text style={[styles.filterPillText, filter === st && styles.filterPillTextActive]}>
+                {st === 'all' ? 'All' : statusLabel[st]}
               </Text>
             </Pressable>
           ))}
         </ScrollView>
 
-        {/* Property List */}
-        {filteredProperties.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>Aucun bien dans cette catégorie</Text>
-          </View>
-        ) : (
-          filteredProperties.map((prop) => {
-            const st = statusConfig[prop.status] || statusConfig.draft;
-            return (
-              <View key={prop.id} style={styles.propertyCard}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-                    <Text style={styles.statusIcon}>{st.icon}</Text>
-                    <Text style={[styles.statusText, { color: st.color }]}>
-                      {st.label}
-                    </Text>
-                  </View>
-                  <Text style={styles.listingTypeBadge}>
-                    {listingTypeLabel[prop.listing_type]}
-                  </Text>
-                </View>
-
-                <Text style={styles.propertyTitle}>{prop.title}</Text>
-                <Text style={styles.propertyDesc} numberOfLines={2}>
-                  {prop.description}
+        {/* Property Cards matching Figma Wireframe 10 */}
+        {filtered.map((item) => {
+          const hasAgent = Boolean(item.agent_id);
+          return (
+            <View key={item.id} style={styles.card}>
+              {/* Top Row: Property Name + Status Badge */}
+              <View style={styles.cardHeader}>
+                <Text style={styles.propertyName} numberOfLines={1}>
+                  {item.title}
                 </Text>
-
-                <View style={styles.propertyMeta}>
-                  <Text style={styles.metaItem}>📍 {prop.location}</Text>
-                  <Text style={styles.metaItem}>🏠 {prop.property_type}</Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    item.status === 'active' && styles.statusBadgeActive,
+                  ]}
+                >
+                  <Text style={styles.statusText}>{statusLabel[item.status] || item.status}</Text>
                 </View>
+              </View>
 
-                <View style={styles.priceSellerRow}>
-                  <Text style={styles.priceText}>
-                    {formatPrice(prop.price, prop.listing_type)}
-                  </Text>
-                  <Text style={styles.sellerText}>
-                    👤 {prop.seller_name}
+              {/* Subtitle: Price · Type · nb offers */}
+              <Text style={styles.propertySubtitle}>
+                £{Number(item.price).toLocaleString('en-GB')}
+                {item.listing_type === 'rent' ? '/mo' : ''} · {item.listing_type === 'sale' ? 'Sale' : 'Rent'} · {item.offersCount} offer{item.offersCount !== 1 ? 's' : ''}
+              </Text>
+
+              {/* Representation Model Pill */}
+              <View style={styles.repRow}>
+                <View
+                  style={[
+                    styles.repBadge,
+                    hasAgent ? styles.repAgentBadge : styles.repDirectBadge,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.repBadgeText,
+                      hasAgent ? styles.repAgentText : styles.repDirectText,
+                    ]}
+                  >
+                    {hasAgent ? 'With Agent' : 'Direct (No Agent)'}
                   </Text>
                 </View>
-
-                <Text style={styles.dateText}>
-                  Mise à jour : {new Date(prop.updated_at).toLocaleDateString('fr-FR')}
+                <Text style={styles.repExplain}>
+                  {hasAgent ? 'Represented by Agent' : 'Managed directly by owner'}
                 </Text>
               </View>
-            );
-          })
-        )}
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>📋 Fonctionnalité — Semaine 3</Text>
-          <Text style={styles.infoCardItem}>
-            • L'agent voit tous ses biens assignés via{' '}
-            <Text style={styles.bold}>sessionService.getMyPortfolio()</Text>
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Filtrage par statut (Brouillon, Actif, Sous offre, Vendu, Loué)
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Informations vendeur et dernière mise à jour affichées
-          </Text>
-          <Text style={styles.infoCardItem}>
-            • Pull-to-refresh pour recharger le portefeuille
-          </Text>
-        </View>
+              {/* Action Buttons matching Wireframe 10:
+                  Seller: Edit | Delete
+                  Agent: Edit | Moderate */}
+              <View style={styles.cardActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.actionBtn}
+                  onPress={() => onEditProperty && onEditProperty(item)}
+                >
+                  <Text style={styles.actionBtnText}>Edit</Text>
+                </Pressable>
+
+                {userRole === 'seller' ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.actionBtn, styles.deleteBtn]}
+                    onPress={() => handleDelete(item.id)}
+                  >
+                    <Text style={styles.actionBtnText}>Delete</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    style={styles.actionBtn}
+                    onPress={() => onEditProperty && onEditProperty(item)}
+                  >
+                    <Text style={styles.actionBtnText}>Moderate</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No properties in this category.</Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -301,205 +266,172 @@ export default function AgentPortfolioScreen({ currentSession }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
   content: {
-    padding: 24,
-    paddingTop: 40,
-    paddingBottom: 60,
-  },
-  brand: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: 3,
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.primary,
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  subheading: {
-    fontSize: 14,
-    color: colors.secondary,
-    marginBottom: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  statCard: {
-    flex: 1,
+    padding: 20,
+    paddingBottom: 40,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E7E3',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: colors.secondary,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  filterScrollView: {
     marginBottom: 16,
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2A2424',
+  },
+  roleSubTitle: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  addIconBtn: {
+    width: 38,
+    height: 38,
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  addIconText: {
+    fontSize: 24,
+    lineHeight: 26,
+    color: '#2A2424',
+    fontWeight: '400',
   },
   filterRow: {
     gap: 8,
-    paddingRight: 8,
+    marginBottom: 18,
   },
-  filterBtn: {
-    backgroundColor: '#FFFFFF',
+  filterPill: {
     borderWidth: 1,
-    borderColor: '#CCD6D1',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  filterBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterBtnText: {
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  filterBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  emptyCard: {
+    borderColor: '#2A2424',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 40,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginBottom: 16,
   },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 10,
+  filterPillActive: {
+    backgroundColor: '#2A2424',
   },
-  emptyText: {
-    fontSize: 15,
-    color: colors.secondary,
+  filterPillText: {
+    fontSize: 12,
     fontWeight: '600',
+    color: '#2A2424',
   },
-  propertyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
+  filterPillTextActive: {
+    color: '#FFFFFF',
+  },
+  card: {
     borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginBottom: 12,
+    borderColor: '#2A2424',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusIcon: {
-    fontSize: 14,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  listingTypeBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.secondary,
-    backgroundColor: '#F0F4F2',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  propertyTitle: {
+  propertyName: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
+    color: '#2A2424',
+    flex: 1,
+    marginRight: 8,
   },
-  propertyDesc: {
-    fontSize: 13,
-    color: colors.secondary,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  propertyMeta: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 8,
-  },
-  metaItem: {
-    fontSize: 13,
-    color: colors.secondary,
-  },
-  priceSellerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  priceText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  sellerText: {
-    fontSize: 13,
-    color: colors.secondary,
-    fontWeight: '500',
-  },
-  dateText: {
-    fontSize: 11,
-    color: '#999',
-    marginTop: 4,
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
+  statusBadge: {
     borderWidth: 1,
-    borderColor: '#E0E7E3',
-    marginTop: 10,
-    marginBottom: 40,
+    borderColor: '#2A2424',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    backgroundColor: '#FFFFFF',
   },
-  infoCardTitle: {
+  statusBadgeActive: {
+    borderColor: '#2A2424',
+    backgroundColor: '#FAFAFA',
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2A2424',
+  },
+  propertySubtitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
+    color: '#555555',
     marginBottom: 8,
   },
-  infoCardItem: {
-    fontSize: 13,
-    color: colors.secondary,
-    lineHeight: 20,
-    marginBottom: 4,
+  repRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
-  bold: {
+  repBadge: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  repAgentBadge: {
+    borderColor: '#B6311E',
+    backgroundColor: '#FFF5F4',
+  },
+  repAgentText: {
+    fontSize: 10,
     fontWeight: '700',
+    color: '#B6311E',
+  },
+  repDirectBadge: {
+    borderColor: '#2A2424',
+    backgroundColor: '#F5F5F5',
+  },
+  repDirectText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2A2424',
+  },
+  repExplain: {
+    fontSize: 11,
+    color: '#777',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  deleteBtn: {
+    borderColor: '#888',
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2A2424',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#777',
   },
 });
-
