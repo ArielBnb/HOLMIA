@@ -1,55 +1,17 @@
--- Buyer enquiries on listings, answered in the app by the owning Seller or the
--- assigned Agent. Mirrors EnquiryRepository (src/repositories/enquiryRepository.ts).
--- Requires 20261121120000_offers_decisions.sql (private.is_offer_decider).
---   pending  = reply is null
---   handled  = reply is set (kept, and visible to the Buyer who asked)
+-- Bridge the deployed enquiries table to the Seller/Agent and Buyer screens.
+-- Requires 20261119121911_property_enquiries.sql.
 begin;
 
-create table public.enquiries (
-  id uuid primary key default gen_random_uuid(),
-  property_id uuid not null references public.properties(id) on delete cascade,
-  buyer_id uuid not null default auth.uid() references public.profiles(id) on delete restrict,
-  message text not null check (char_length(btrim(message)) between 1 and 2000),
-  reply text check (reply is null or char_length(btrim(reply)) between 1 and 2000),
-  replied_by uuid references public.profiles(id) on delete restrict,
-  replied_at timestamptz,
-  created_at timestamptz not null default now(),
-  check ((reply is null) = (replied_at is null) and (reply is null) = (replied_by is null))
-);
-create index enquiries_property_idx on public.enquiries(property_id, created_at desc);
-create index enquiries_buyer_idx on public.enquiries(buyer_id, created_at desc);
+alter table public.enquiries
+  add column replied_by uuid references public.profiles(id) on delete restrict,
+  add constraint enquiries_replier_requires_response check (replied_by is null or status = 'answered');
+
 create index enquiries_pending_idx on public.enquiries(property_id) where reply is null;
 
--- A Buyer asks about a published listing; a new enquiry is always pending.
-create function private.validate_enquiry() returns trigger
-language plpgsql security definer set search_path = '' as $$
-begin
-  if not exists (select 1 from public.profiles where id = new.buyer_id and role = 'buyer') then
-    raise exception 'Only Buyers can send enquiries' using errcode = '42501';
-  end if;
-  if not exists (select 1 from public.properties where id = new.property_id and status <> 'draft') then
-    raise exception 'Enquiries can only be sent about published listings' using errcode = '23514';
-  end if;
-  new.reply := null;
-  new.replied_by := null;
-  new.replied_at := null;
-  return new;
-end $$;
-revoke all on function private.validate_enquiry() from public;
-create trigger validate_enquiry before insert on public.enquiries
-for each row execute function private.validate_enquiry();
-
-alter table public.enquiries enable row level security;
-revoke all on public.enquiries from anon, authenticated;
--- No direct UPDATE/DELETE: replies go through reply_enquiry only.
-grant select, insert on public.enquiries to authenticated;
--- Isolation: the Buyer who asked, or the listing's owner Seller / assigned Agent.
-create policy enquiries_read on public.enquiries for select to authenticated using (
-  buyer_id = (select auth.uid()) or private.is_offer_decider(property_id)
-);
-create policy enquiries_buyer_insert on public.enquiries for insert to authenticated with check (
-  buyer_id = (select auth.uid()) and (select private.current_profile_role()) = 'buyer'
-);
+-- Use the checked RPC for new replies and corrections. The existing trigger
+-- still sets status and replied_at from the stored reply.
+revoke update (reply) on public.enquiries from authenticated;
+alter policy enquiries_recipient_reply on public.enquiries using (false) with check (false);
 
 -- Seller (own listings) / Agent (assigned listings): enquiries received.
 create function public.enquiries_received() returns table (
@@ -93,18 +55,22 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_property uuid; v_text text := btrim(coalesce(p_reply, ''));
 begin
-  select property_id into v_property from public.enquiries where id = p_enquiry;
-  if v_property is null then
-    raise exception 'Enquiry not found' using errcode = 'P0002';
-  end if;
-  if not private.is_offer_decider(v_property) then
+  select p.id into v_property
+  from public.enquiries e
+  join public.properties p on p.id = e.property_id
+  where e.id = p_enquiry and private.can_answer_enquiry(e.property_id)
+  for share of p;
+  if v_property is null or not private.can_answer_enquiry(v_property) then
     raise exception 'Only the owner or the assigned agent can reply to this enquiry' using errcode = '42501';
   end if;
-  if char_length(v_text) not between 1 and 2000 then
+  if char_length(v_text) not between 1 and 2000 or v_text !~ '[^[:space:]]' then
     raise exception 'A reply must be between 1 and 2000 characters' using errcode = '23514';
   end if;
-  update public.enquiries set reply = v_text, replied_by = auth.uid(), replied_at = now()
+  update public.enquiries set reply = v_text, replied_by = auth.uid()
   where id = p_enquiry;
+  if not found then
+    raise exception 'Enquiry is no longer available' using errcode = 'P0002';
+  end if;
   return jsonb_build_object('enquiry', p_enquiry, 'status', 'handled');
 end $$;
 revoke all on function public.reply_enquiry(uuid, text) from public, anon;
