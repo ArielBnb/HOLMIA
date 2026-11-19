@@ -76,6 +76,7 @@ function MainHome({ profile }) {
           <PropertyLifecycleScreen
             currentSession={profile}
             onBack={() => setActiveTab('listings')}
+            onOpenChat={handleOpenChat}
           />
         )}
 

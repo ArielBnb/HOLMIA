@@ -11,8 +11,8 @@ const STORAGE_KEY = '@holmia_messages_v1';
 const INITIAL_CONVERSATIONS = [
   {
     id: 'conv-prop-1-agent-seller',
-    propertyId: 'a0000000-0000-4000-8000-000000000001',
-    propertyTitle: 'Bright Apartment in Central London',
+    propertyId: 'prop-1',
+    propertyTitle: 'Central London Flat',
     hasAgent: true,
     channelType: 'agent_seller', // Agent <-> Seller
     participants: {
@@ -33,20 +33,20 @@ const INITIAL_CONVERSATIONS = [
         id: 'msg-2',
         senderRole: 'agent',
         senderName: 'Demo Agent',
-        text: 'Hi! Yes, we have 2 registered inquiries. One buyer is preparing an offer close to £420,000.',
+        text: 'Hi! Yes, we have an offer of £420,000 from David Smith. Shall we accept or ask for £425,000?',
         timestamp: '10:22 AM',
       },
     ],
   },
   {
     id: 'conv-prop-1-agent-buyer',
-    propertyId: 'a0000000-0000-4000-8000-000000000001',
-    propertyTitle: 'Bright Apartment in Central London',
+    propertyId: 'prop-1',
+    propertyTitle: 'Central London Flat',
     hasAgent: true,
     channelType: 'agent_buyer', // Agent <-> Buyer
     participants: {
       buyerId: 'user-buyer-1',
-      buyerName: 'Demo Buyer',
+      buyerName: 'David Smith (Buyer)',
       agentId: 'user-agent-1',
       agentName: 'Demo Agent',
     },
@@ -54,22 +54,22 @@ const INITIAL_CONVERSATIONS = [
       {
         id: 'msg-3',
         senderRole: 'buyer',
-        senderName: 'Demo Buyer',
-        text: 'Good morning, is it possible to schedule a viewing this Saturday?',
+        senderName: 'David Smith',
+        text: 'Hello, I submitted an offer of £420,000. Is the owner open to this price?',
         timestamp: '09:40 AM',
       },
       {
         id: 'msg-4',
         senderRole: 'agent',
         senderName: 'Demo Agent',
-        text: 'Certainly! I have slots open at 11:00 AM or 2:30 PM. Which works best for you?',
+        text: 'Good morning David! I am presenting your offer to the seller today and will confirm shortly.',
         timestamp: '09:55 AM',
       },
     ],
   },
   {
     id: 'conv-prop-2-seller-buyer',
-    propertyId: 'a0000000-0000-4000-8000-000000000002',
+    propertyId: 'prop-2',
     propertyTitle: 'Spacious Family House in Manchester',
     hasAgent: false, // NO AGENT -> Direct conversation
     channelType: 'seller_buyer', // Seller <-> Buyer direct
@@ -124,29 +124,6 @@ async function saveConversations(convs) {
   }
 }
 
-/**
- * Business Rule Check:
- * - If property HAS an agent:
- *     Buyer <-> Agent : ALLOWED
- *     Seller <-> Agent : ALLOWED
- *     Buyer <-> Seller : FORBIDDEN (Must go through Agent)
- * - If property has NO agent:
- *     Buyer <-> Seller : ALLOWED (Direct communication)
- *     Buyer/Seller <-> Agent : FORBIDDEN (No agent assigned)
- */
-export function getChatRoutingRule(property) {
-  const hasAgent = Boolean(property.agent_id);
-  return {
-    hasAgent,
-    allowDirectSellerBuyer: !hasAgent,
-    allowAgentBuyer: hasAgent,
-    allowAgentSeller: hasAgent,
-    description: hasAgent
-      ? 'This property is represented by an Agent. Buyers and Sellers communicate with the Agent.'
-      : 'This property has NO Agent (Direct Seller listing). Buyers communicate directly with the Seller.',
-  };
-}
-
 export async function getConversationsForRole(role, userId) {
   const all = await loadConversations();
   const normalizedRole = (role || 'buyer').toLowerCase();
@@ -171,37 +148,41 @@ export async function getConversationsForRole(role, userId) {
   });
 }
 
-export async function startOrFindConversation({ property, userRole, userName }) {
+export async function startOrFindConversation({ property, userRole, userName, targetChannel }) {
   const all = await loadConversations();
-  const hasAgent = Boolean(property.agent_id);
-  const normalizedRole = (userRole || 'buyer').toLowerCase();
+  const hasAgent = property.agent_id !== null && property.agent_id !== undefined;
+  const normalizedRole = (userRole || 'agent').toLowerCase();
 
-  let targetChannelType = 'seller_buyer';
-  if (hasAgent) {
-    targetChannelType = normalizedRole === 'seller' ? 'agent_seller' : 'agent_buyer';
-  } else {
-    targetChannelType = 'seller_buyer';
+  let targetChannelType = targetChannel;
+  if (!targetChannelType) {
+    if (hasAgent) {
+      targetChannelType = normalizedRole === 'seller' ? 'agent_seller' : 'agent_buyer';
+    } else {
+      targetChannelType = 'seller_buyer';
+    }
   }
 
   // Check if conversation already exists
   let conv = all.find(
-    (c) => c.propertyId === property.id && c.channelType === targetChannelType
+    (c) =>
+      (c.propertyId === property.id || c.propertyTitle === property.title) &&
+      c.channelType === targetChannelType
   );
 
   if (!conv) {
     conv = {
       id: `conv-${property.id}-${targetChannelType}-${Date.now()}`,
       propertyId: property.id,
-      propertyTitle: property.title,
+      propertyTitle: property.title || property.property_title || 'Property',
       hasAgent,
       channelType: targetChannelType,
       participants: {
         sellerId: property.seller_id || 'user-seller-1',
         sellerName: 'Demo Seller',
-        agentId: property.agent_id || null,
-        agentName: hasAgent ? 'Demo Agent' : null,
-        buyerId: normalizedRole === 'buyer' ? 'user-buyer-1' : null,
-        buyerName: normalizedRole === 'buyer' ? (userName || 'Demo Buyer') : 'Interested Buyer',
+        agentId: property.agent_id || 'user-agent-1',
+        agentName: 'Demo Agent',
+        buyerId: 'user-buyer-1',
+        buyerName: property.buyer_name || 'Interested Buyer',
       },
       messages: [],
     };
@@ -235,3 +216,53 @@ export async function sendMessage(conversationId, { senderRole, senderName, text
   return newMsg;
 }
 
+/**
+ * Automatically logs a message and dispatches notifications when an offer is Accepted or Rejected.
+ * Notifies the Buyer and the Seller in their respective chat channels.
+ */
+export async function notifyOfferAction({ propertyId, propertyTitle, buyerName, amount, action, agentName }) {
+  const all = await loadConversations();
+  const now = new Date();
+  const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  const formattedAmount = Number(amount).toLocaleString('en-GB');
+
+  // 1. Notify Seller
+  let sellerConv = all.find(
+    (c) =>
+      (c.propertyId === propertyId || c.propertyTitle === propertyTitle) &&
+      c.channelType === 'agent_seller'
+  );
+  if (sellerConv) {
+    sellerConv.messages.push({
+      id: `msg-offer-seller-${Date.now()}`,
+      senderRole: 'agent',
+      senderName: agentName || 'Demo Agent',
+      text:
+        action === 'accepted'
+          ? `📢 Offer Accepted: We have accepted the offer of £${formattedAmount} from ${buyerName}. The listing is now Under Offer.`
+          : `📢 Offer Rejected: The offer of £${formattedAmount} from ${buyerName} was rejected.`,
+      timestamp: time,
+    });
+  }
+
+  // 2. Notify Buyer
+  let buyerConv = all.find(
+    (c) =>
+      (c.propertyId === propertyId || c.propertyTitle === propertyTitle) &&
+      c.channelType === 'agent_buyer'
+  );
+  if (buyerConv) {
+    buyerConv.messages.push({
+      id: `msg-offer-buyer-${Date.now()}`,
+      senderRole: 'agent',
+      senderName: agentName || 'Demo Agent',
+      text:
+        action === 'accepted'
+          ? `🎉 Great news! Your offer of £${formattedAmount} on "${propertyTitle}" has been ACCEPTED by the seller! The property is now Under Offer.`
+          : `Update regarding your offer of £${formattedAmount} on "${propertyTitle}": the offer was not accepted by the seller. Feel free to submit a revised offer.`,
+      timestamp: time,
+    });
+  }
+
+  await saveConversations(all);
+}

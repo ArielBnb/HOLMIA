@@ -8,9 +8,10 @@ import {
   Pressable,
 } from 'react-native';
 import { updateProperty } from '../services/propertyService';
+import { notifyOfferAction, startOrFindConversation } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
 
-export default function PropertyLifecycleScreen({ currentSession, onBack }) {
+export default function PropertyLifecycleScreen({ currentSession, onBack, onOpenChat }) {
   const [activeTab, setActiveTab] = useState('lifecycle'); // 'lifecycle' | 'offers'
   const [selectedPropId, setSelectedPropId] = useState('prop-1');
   const [message, setMessage] = useState('');
@@ -202,14 +203,40 @@ export default function PropertyLifecycleScreen({ currentSession, onBack }) {
     // Automatically transition property to Under Offer
     setSelectedPropId(target.property_id);
     await handleTransition('under_offer', `Offer of £${target.amount.toLocaleString('en-GB')} accepted by ${target.buyer_name}.`);
-    setMessage(`Offer accepted: "${target.property_title}" transitioned to Under Offer!`);
+
+    // Automatically send notification in Messages to Buyer and Seller
+    try {
+      await notifyOfferAction({
+        propertyId: target.property_id,
+        propertyTitle: target.property_title,
+        buyerName: target.buyer_name,
+        amount: target.amount,
+        action: 'accepted',
+        agentName: currentSession?.full_name || currentSession?.username || 'Demo Agent',
+      });
+    } catch (e) {}
+
+    setMessage(`Offer accepted: "${target.property_title}" transitioned to Under Offer! Notification sent in Messages.`);
   };
 
-  const handleRejectOffer = (offerId) => {
+  const handleRejectOffer = async (offerId) => {
+    const target = offers.find((o) => o.id === offerId);
     setOffers((prev) =>
       prev.map((o) => (o.id === offerId ? { ...o, status: 'rejected' } : o))
     );
-    setMessage('Offer rejected.');
+    if (target) {
+      try {
+        await notifyOfferAction({
+          propertyId: target.property_id,
+          propertyTitle: target.property_title,
+          buyerName: target.buyer_name,
+          amount: target.amount,
+          action: 'rejected',
+          agentName: currentSession?.full_name || currentSession?.username || 'Demo Agent',
+        });
+      } catch (e) {}
+    }
+    setMessage('Offer rejected. Notification sent to Buyer in Messages.');
   };
 
   const isTerminal = ['sold', 'rented'].includes(selectedProp.status);
@@ -425,6 +452,38 @@ export default function PropertyLifecycleScreen({ currentSession, onBack }) {
                     Status: <Text style={{ fontWeight: '700' }}>{item.status}</Text>
                   </Text>
                 )}
+
+                {/* Direct Discussion Buttons for Agent */}
+                <View style={styles.offerChatRow}>
+                  <Pressable
+                    style={styles.offerChatBtn}
+                    onPress={async () => {
+                      const conv = await startOrFindConversation({
+                        property: { id: item.property_id, title: item.property_title, agent_id: 'user-agent-1', buyer_name: item.buyer_name },
+                        userRole: 'agent',
+                        userName: currentSession?.full_name || 'Demo Agent',
+                        targetChannel: 'agent_buyer',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }}
+                  >
+                    <Text style={styles.offerChatBtnText}>💬 Discuss with Buyer</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.offerChatBtn}
+                    onPress={async () => {
+                      const conv = await startOrFindConversation({
+                        property: { id: item.property_id, title: item.property_title, agent_id: 'user-agent-1' },
+                        userRole: 'agent',
+                        userName: currentSession?.full_name || 'Demo Agent',
+                        targetChannel: 'agent_seller',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }}
+                  >
+                    <Text style={styles.offerChatBtnText}>💬 Discuss with Seller</Text>
+                  </Pressable>
+                </View>
               </View>
             ))}
 
@@ -703,6 +762,28 @@ const styles = StyleSheet.create({
   cardActions: {
     flexDirection: 'row',
     gap: 12,
+  },
+  offerChatRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    paddingTop: 8,
+  },
+  offerChatBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 6,
+    paddingVertical: 7,
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+  },
+  offerChatBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2A2424',
   },
   resolvedText: {
     fontSize: 13,
