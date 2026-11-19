@@ -20,6 +20,7 @@ import AgentStatsScreen from '../screens/AgentStatsScreen';
 import SellerPropertyFormScreen from '../screens/SellerPropertyFormScreen';
 import OffersReceivedScreen from '../screens/OffersReceivedScreen';
 import BuyerEnquiriesScreen from '../screens/BuyerEnquiriesScreen';
+import BuyerNavigator from './BuyerNavigator';
 import { authStyles as s } from '../styles/authTheme';
 
 function MainHome({ profile }) {
@@ -155,8 +156,15 @@ function MainHome({ profile }) {
             {/* === SELLER / BUYER WORKSPACE === */}
             {userRole !== 'agent' && (
               <>
-                {/* Wireframe 10: My listings / Catalogue */}
-                {activeTab === 'listings' && (
+                {/* Wireframe 10: Seller listings / Buyer catalogue */}
+                {activeTab === 'listings' && userRole === 'buyer' && (
+                  <BuyerNavigator
+                    onProfile={() => setActiveTab('profile')}
+                    onEnquiries={() => setActiveTab('enquiries')}
+                    onMessages={() => setActiveTab('messages')}
+                  />
+                )}
+                {activeTab === 'listings' && userRole === 'seller' && (
                   <AgentPortfolioScreen
                     currentSession={profile}
                     onEditProperty={handleEditProperty}
@@ -239,7 +247,7 @@ function MainHome({ profile }) {
       </View>
 
       {/* Figma Bottom Navigation Bar (pure white #FFFFFF) */}
-      <View style={styles.bottomNav}>
+      {!(userRole === 'buyer' && activeTab === 'listings') && <View style={styles.bottomNav}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -261,7 +269,7 @@ function MainHome({ profile }) {
             </Pressable>
           );
         })}
-      </View>
+      </View>}
     </SafeAreaView>
   );
 }
