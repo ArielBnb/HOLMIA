@@ -30,19 +30,56 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
   const fetchConversations = async () => {
     const list = await getConversationsForRole(role, currentSession?.id);
     setConversations(list);
-    if (initialConversationId) {
-      const match = list.find((c) => c.id === initialConversationId);
-      if (match) setActiveConv(match);
-    }
+    setActiveConv((currentActive) => {
+      if (!currentActive) {
+        if (initialConversationId) {
+          return list.find((c) => c.id === initialConversationId) || null;
+        }
+        return null;
+      }
+      const updated = list.find((c) => c.id === currentActive.id);
+      return updated || currentActive;
+    });
   };
 
   useEffect(() => {
     fetchConversations();
-    // Subscribe to live multi-device Supabase Realtime messages
+
+    // 1. Polling interval (every 2.5s) for rock-solid sync across all devices
+    const interval = setInterval(fetchConversations, 2500);
+
+    // 2. Instant WebSocket listener for live Supabase broadcasts
     const unsubscribe = subscribeToRealtimeMessages((remoteMsg) => {
+      setActiveConv((currentActive) => {
+        if (!currentActive || currentActive.id !== remoteMsg.conversation_id) return currentActive;
+        const exists = currentActive.messages.some((m) => m.id === remoteMsg.id);
+        if (exists) return currentActive;
+
+        const d = new Date(remoteMsg.created_at);
+        const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+        return {
+          ...currentActive,
+          messages: [
+            ...currentActive.messages,
+            {
+              id: remoteMsg.id,
+              senderRole: remoteMsg.sender_role,
+              senderName: remoteMsg.sender_name,
+              text: remoteMsg.text,
+              timestamp: timeStr,
+            },
+          ],
+        };
+      });
+
       fetchConversations();
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 80);
     });
+
     return () => {
+      clearInterval(interval);
       if (unsubscribe) unsubscribe();
     };
   }, [role, initialConversationId]);

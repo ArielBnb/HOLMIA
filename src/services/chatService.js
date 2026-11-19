@@ -155,7 +155,7 @@ async function syncFromSupabase(convs) {
 
       // Check if message already exists locally
       const alreadyPresent = targetConv.messages.some(
-        (m) => m.id === remoteMsg.id || (m.text === remoteMsg.text && m.timestamp === remoteMsg.created_at)
+        (m) => m.id === remoteMsg.id || (m.text === remoteMsg.text && m.senderRole === remoteMsg.sender_role)
       );
 
       if (!alreadyPresent) {
@@ -305,9 +305,34 @@ export async function sendMessage(conversationId, { senderRole, senderName, text
   const now = new Date();
   const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-  const localId = `msg-${Date.now()}`;
+  let assignedId = `msg-${Date.now()}`;
+
+  // Send to Supabase live table for real-time multi-device sync
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          property_id: conv.propertyId,
+          property_title: conv.propertyTitle,
+          sender_role: senderRole,
+          sender_name: senderName,
+          text: text.trim(),
+        })
+        .select()
+        .single();
+
+      if (data && data.id) {
+        assignedId = data.id;
+      }
+    } catch (err) {
+      console.warn('Supabase remote insert fallback to local:', err);
+    }
+  }
+
   const newMsg = {
-    id: localId,
+    id: assignedId,
     senderRole,
     senderName,
     text: text.trim(),
@@ -316,22 +341,6 @@ export async function sendMessage(conversationId, { senderRole, senderName, text
 
   conv.messages.push(newMsg);
   await saveLocalConversations(all);
-
-  // Send to Supabase live table for real-time multi-device sync
-  if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('messages').insert({
-        conversation_id: conversationId,
-        property_id: conv.propertyId,
-        property_title: conv.propertyTitle,
-        sender_role: senderRole,
-        sender_name: senderName,
-        text: text.trim(),
-      });
-    } catch (err) {
-      console.warn('Supabase remote insert fallback to local:', err);
-    }
-  }
 
   return newMsg;
 }

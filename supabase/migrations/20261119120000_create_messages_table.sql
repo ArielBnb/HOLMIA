@@ -30,3 +30,4 @@ create policy "Allow insert messages" on public.messages
 
 -- Enable Supabase Realtime broadcast for multi-device sync
 alter publication supabase_realtime add table public.messages;
+
