@@ -14,33 +14,23 @@ import EmailConfirmationScreen from '../screens/EmailConfirmationScreen';
 import AgentPortfolioScreen from '../screens/AgentPortfolioScreen';
 import AgentModerationScreen from '../screens/AgentModerationScreen';
 import PropertyLifecycleScreen from '../screens/PropertyLifecycleScreen';
-import BuyerExploreScreen from '../screens/BuyerExploreScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import { authStyles as s } from '../styles/authTheme';
 
-function RoleHome({ profile: initialProfile }) {
+function MainHome({ profile }) {
   const { signOut } = useAuth();
-  const [profile, setProfile] = useState(initialProfile);
-  const currentRole = profile?.role || 'buyer';
-
-  // Role-specific default tab
-  const getDefaultTab = (role) => {
-    if (role === 'buyer') return 'explore';
-    return 'listings';
-  };
-
-  const [activeTab, setActiveTab] = useState(getDefaultTab(currentRole));
+  const [activeTab, setActiveTab] = useState('listings');
   const [editingProperty, setEditingProperty] = useState(null);
   const [chatConvId, setChatConvId] = useState(null);
 
   const handleEditProperty = (prop) => {
     setEditingProperty(prop);
-    setActiveTab(currentRole === 'agent' ? 'moderate' : 'add');
+    setActiveTab('add');
   };
 
   const handleAddProperty = () => {
     setEditingProperty(null);
-    setActiveTab(currentRole === 'agent' ? 'moderate' : 'add');
+    setActiveTab('add');
   };
 
   const handleOpenChat = (conversationId) => {
@@ -48,55 +38,20 @@ function RoleHome({ profile: initialProfile }) {
     setActiveTab('messages');
   };
 
-  // Define tabs strictly per role
-  const getTabsForRole = (role) => {
-    if (role === 'buyer') {
-      return [
-        { id: 'explore', label: 'Explore' },
-        { id: 'messages', label: 'Messages' },
-        { id: 'profile', label: 'Profile' },
-      ];
-    }
-    if (role === 'seller') {
-      return [
-        { id: 'listings', label: 'My listings' },
-        { id: 'add', label: 'Add' },
-        { id: 'offers', label: 'Offers' },
-        { id: 'messages', label: 'Messages' },
-        { id: 'profile', label: 'Profile' },
-      ];
-    }
-    // Agent
-    return [
-      { id: 'listings', label: 'Assigned' },
-      { id: 'moderate', label: 'Moderate' },
-      { id: 'lifecycle', label: 'Lifecycle' },
-      { id: 'messages', label: 'Messages' },
-      { id: 'profile', label: 'Profile' },
-    ];
-  };
-
-  const tabs = getTabsForRole(currentRole);
-
-  const handleSwitchRolePreview = (newRole) => {
-    const updated = { ...profile, role: newRole };
-    setProfile(updated);
-    setActiveTab(getDefaultTab(newRole));
-  };
+  // Wireframe Navigation + Messages
+  const tabs = [
+    { id: 'listings', label: 'My listings' },
+    { id: 'add', label: 'Add' },
+    { id: 'lifecycle', label: 'Lifecycle' },
+    { id: 'messages', label: 'Messages' },
+    { id: 'profile', label: 'Profile' },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Screen Content */}
       <View style={styles.content}>
-        {/* BUYER SCREENS */}
-        {currentRole === 'buyer' && activeTab === 'explore' && (
-          <BuyerExploreScreen
-            currentSession={profile}
-            onOpenChat={handleOpenChat}
-          />
-        )}
-
-        {/* SELLER / AGENT LISTINGS SCREEN (Wireframe 10) */}
+        {/* Wireframe 10: My listings */}
         {activeTab === 'listings' && (
           <AgentPortfolioScreen
             currentSession={profile}
@@ -106,8 +61,8 @@ function RoleHome({ profile: initialProfile }) {
           />
         )}
 
-        {/* SELLER / AGENT ADD OR EDIT PROPERTY (Wireframe 11) */}
-        {(activeTab === 'add' || activeTab === 'moderate') && (
+        {/* Wireframe 11: Add / Edit Property */}
+        {activeTab === 'add' && (
           <AgentModerationScreen
             property={editingProperty}
             currentSession={profile}
@@ -116,24 +71,24 @@ function RoleHome({ profile: initialProfile }) {
           />
         )}
 
-        {/* OFFERS / LIFECYCLE (Wireframe 12) */}
-        {(activeTab === 'offers' || activeTab === 'lifecycle') && (
+        {/* Wireframe 12: Offers & Property Lifecycle */}
+        {activeTab === 'lifecycle' && (
           <PropertyLifecycleScreen
             currentSession={profile}
             onBack={() => setActiveTab('listings')}
           />
         )}
 
-        {/* MESSAGING & CHAT SCREEN (All Roles) */}
+        {/* Communication System: Agent-Seller, Seller-Buyer (direct), Agent-Buyer */}
         {activeTab === 'messages' && (
           <MessagesScreen
             currentSession={profile}
             initialConversationId={chatConvId}
-            onBackToNav={() => setActiveTab(getDefaultTab(currentRole))}
+            onBackToNav={() => setActiveTab('listings')}
           />
         )}
 
-        {/* PROFILE SCREEN */}
+        {/* Profile */}
         {activeTab === 'profile' && (
           <View style={styles.profileContainer}>
             <Text style={styles.profileTitle}>Profile</Text>
@@ -143,9 +98,9 @@ function RoleHome({ profile: initialProfile }) {
                 {profile.full_name || profile.username || 'User'}
               </Text>
               <Text style={styles.profileMeta}>
-                Active Role:{' '}
+                Role:{' '}
                 <Text style={{ fontWeight: '700', textTransform: 'capitalize', color: '#B6311E' }}>
-                  {currentRole}
+                  {profile.role || 'agent'}
                 </Text>
               </Text>
               {profile.email ? (
@@ -154,30 +109,6 @@ function RoleHome({ profile: initialProfile }) {
               {profile.username ? (
                 <Text style={styles.profileMeta}>Username: {profile.username}</Text>
               ) : null}
-            </View>
-
-            {/* Quick Role Switcher for Testing */}
-            <View style={styles.roleSwitcherBox}>
-              <Text style={styles.roleSwitcherTitle}>Switch Role (Demo & Testing):</Text>
-              <View style={styles.roleButtonRow}>
-                {['buyer', 'seller', 'agent'].map((r) => {
-                  const isActive = currentRole === r;
-                  return (
-                    <Pressable
-                      key={r}
-                      style={[styles.roleBtn, isActive && styles.roleBtnActive]}
-                      onPress={() => handleSwitchRolePreview(r)}
-                    >
-                      <Text style={[styles.roleBtnText, isActive && styles.roleBtnTextActive]}>
-                        {r.toUpperCase()}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Text style={styles.roleSwitcherNote}>
-                Instantly previews the tailored UI and communication rules for this role.
-              </Text>
             </View>
 
             <Pressable
@@ -191,7 +122,7 @@ function RoleHome({ profile: initialProfile }) {
         )}
       </View>
 
-      {/* Figma Bottom Navigation Bar */}
+      {/* Figma Bottom Navigation Bar (pure white #FFFFFF) */}
       <View style={styles.bottomNav}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -200,7 +131,7 @@ function RoleHome({ profile: initialProfile }) {
               key={tab.id}
               style={styles.navItem}
               onPress={() => {
-                if (tab.id === 'add' || tab.id === 'moderate') setEditingProperty(null);
+                if (tab.id === 'add') setEditingProperty(null);
                 if (tab.id !== 'messages') setChatConvId(null);
                 setActiveTab(tab.id);
               }}
@@ -250,7 +181,7 @@ export default function AuthNavigator() {
     );
   }
 
-  if (profile) return <RoleHome key={profile.id} profile={profile} />;
+  if (profile) return <MainHome key={profile.id} profile={profile} />;
 
   if (screen === 'register') {
     return (
@@ -297,7 +228,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
   },
   navItem: {
     flex: 1,
@@ -332,7 +263,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 18,
     backgroundColor: '#FFFFFF',
-    marginBottom: 20,
+    marginBottom: 24,
     gap: 8,
   },
   profileName: {
@@ -344,50 +275,6 @@ const styles = StyleSheet.create({
   profileMeta: {
     fontSize: 14,
     color: '#444444',
-  },
-  roleSwitcherBox: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 10,
-    padding: 16,
-    backgroundColor: '#FAFAFA',
-    marginBottom: 24,
-  },
-  roleSwitcherTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2A2424',
-    marginBottom: 10,
-  },
-  roleButtonRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  roleBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 6,
-    paddingVertical: 8,
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  roleBtnActive: {
-    backgroundColor: '#2A2424',
-  },
-  roleBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2A2424',
-  },
-  roleBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  roleSwitcherNote: {
-    fontSize: 11,
-    color: '#777',
-    fontStyle: 'italic',
   },
   logoutBtn: {
     borderWidth: 1,
