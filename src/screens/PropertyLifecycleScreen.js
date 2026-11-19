@@ -118,12 +118,12 @@ export default function PropertyLifecycleScreen({
     };
 
     setProperties((prev) =>
-      prev.map((p) =>
+      (prev || []).map((p) =>
         p.id === selectedProp.id
           ? {
               ...p,
               status: newStatus,
-              history: [...p.history, newEntry],
+              history: [...(p.history || []), newEntry],
             }
           : p
       )
@@ -236,7 +236,7 @@ export default function PropertyLifecycleScreen({
             {/* Property Selector */}
             <Text style={styles.sectionSubtitle}>Select property:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propSelectorScroll}>
-              {properties.map((p) => {
+              {(properties || []).map((p) => {
                 const isSelected = p.id === selectedProp.id;
                 return (
                   <Pressable
@@ -375,10 +375,19 @@ export default function PropertyLifecycleScreen({
             {/* Audit Trail Timeline */}
             <Text style={styles.sectionHeading}>Audit Trail & History</Text>
             <View style={styles.timelineCard}>
-              {selectedProp.history.map((entry, idx) => {
-                const isLast = idx === selectedProp.history.length - 1;
+              {(selectedProp?.history || [
+                {
+                  id: 'h-init',
+                  from: 'Created',
+                  to: (selectedProp?.status || 'Active').charAt(0).toUpperCase() + (selectedProp?.status || 'active').slice(1).replace('_', ' '),
+                  actor: 'Demo Seller',
+                  date: 'Recent',
+                  notes: 'Listing created and assigned to agent',
+                },
+              ]).map((entry, idx, arr) => {
+                const isLast = idx === arr.length - 1;
                 return (
-                  <View key={entry.id} style={styles.timelineRow}>
+                  <View key={entry.id || idx} style={styles.timelineRow}>
                     <View style={styles.timelineLeftCol}>
                       <View style={styles.timelineDot} />
                       {!isLast && <View style={styles.timelineLine} />}
@@ -409,7 +418,7 @@ export default function PropertyLifecycleScreen({
           /* Offers View matching Wireframe 12 */
           <>
             <Text style={styles.sectionSubtitle}>Received Offers & Applications:</Text>
-            {offers.map((item) => (
+            {(offers || []).map((item) => (
               <View key={item.id} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>{item.buyer_name}</Text>

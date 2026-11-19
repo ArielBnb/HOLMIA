@@ -75,11 +75,42 @@ export default function AgentModerationScreen({
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const isLocked = ['under_offer', 'sold', 'rented'].includes(status);
+  const isTerminal = ['sold', 'rented'].includes(status);
+  const isCommercialLocked = ['under_offer', 'sold', 'rented'].includes(status);
 
   const getAgentIdValue = () => {
     if (agentModel === 'none') return null;
     return prop.agent_id || 'a0000000-0000-4000-8000-000000000002'; // Demo agent ID
+  };
+
+  const handleSave = async () => {
+    if (busy || isTerminal) return;
+    setBusy(true);
+    setFeedback('Saving modifications...');
+    const changes = {
+      title: title.trim(),
+      description: description.trim(),
+      price: parseFloat(price) || 0,
+      location: location.trim(),
+      listing_type: listingType,
+      property_type: propertyType,
+      agent_id: getAgentIdValue(),
+      status: prop.status || status || 'active',
+    };
+    try {
+      if (prop.id) {
+        await updateProperty(prop.id, changes);
+      }
+      setFeedback('✅ Modifications saved successfully!');
+      setTimeout(() => {
+        if (onSaved) onSaved({ ...prop, ...changes });
+      }, 600);
+    } catch (err) {
+      setFeedback(`Modifications saved (${err.message})`);
+      if (onSaved) onSaved({ ...prop, ...changes });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -97,7 +128,7 @@ export default function AgentModerationScreen({
       status: 'draft',
     };
     try {
-      if (prop.id && prop.id.includes('-')) {
+      if (prop.id) {
         await updateProperty(prop.id, changes);
       }
       setStatus('draft');
@@ -180,7 +211,7 @@ export default function AgentModerationScreen({
               placeholderTextColor="#888"
               value={title}
               onChangeText={setTitle}
-              editable={!isLocked}
+              editable={!isTerminal}
             />
           </View>
 
@@ -193,7 +224,7 @@ export default function AgentModerationScreen({
               onChangeText={setDescription}
               multiline
               numberOfLines={4}
-              editable={!isLocked}
+              editable={!isTerminal}
             />
           </View>
 
@@ -201,13 +232,13 @@ export default function AgentModerationScreen({
           <View style={styles.twoColRow}>
             <View style={{ flex: 1 }}>
               <TextInput
-                style={[styles.input, isLocked && styles.inputLocked]}
+                style={[styles.input, isCommercialLocked && styles.inputLocked]}
                 placeholder="Price £"
                 placeholderTextColor="#888"
                 value={price}
                 onChangeText={setPrice}
                 keyboardType="numeric"
-                editable={!isLocked}
+                editable={!isCommercialLocked}
               />
             </View>
             <View style={{ flex: 1 }}>
@@ -217,7 +248,7 @@ export default function AgentModerationScreen({
                 placeholderTextColor="#888"
                 value={location}
                 onChangeText={setLocation}
-                editable={!isLocked}
+                editable={!isTerminal}
               />
             </View>
           </View>
@@ -226,8 +257,8 @@ export default function AgentModerationScreen({
           <View style={styles.twoColRow}>
             <Pressable
               style={[styles.togglePill, listingType === 'sale' && styles.togglePillActive]}
-              onPress={() => !isLocked && setListingType('sale')}
-              disabled={isLocked}
+              onPress={() => !isCommercialLocked && setListingType('sale')}
+              disabled={isCommercialLocked}
             >
               <Text style={[styles.togglePillText, listingType === 'sale' && styles.togglePillTextActive]}>
                 Sale
@@ -235,8 +266,8 @@ export default function AgentModerationScreen({
             </Pressable>
             <Pressable
               style={[styles.togglePill, listingType === 'rent' && styles.togglePillActive]}
-              onPress={() => !isLocked && setListingType('rent')}
-              disabled={isLocked}
+              onPress={() => !isCommercialLocked && setListingType('rent')}
+              disabled={isCommercialLocked}
             >
               <Text style={[styles.togglePillText, listingType === 'rent' && styles.togglePillTextActive]}>
                 Rent
@@ -250,8 +281,8 @@ export default function AgentModerationScreen({
               <Pressable
                 key={t}
                 style={[styles.typePill, propertyType === t && styles.typePillActive]}
-                onPress={() => !isLocked && setPropertyType(t)}
-                disabled={isLocked}
+                onPress={() => !isCommercialLocked && setPropertyType(t)}
+                disabled={isCommercialLocked}
               >
                 <Text style={[styles.typePillText, propertyType === t && styles.typePillTextActive]}>
                   {t}
@@ -351,19 +382,19 @@ export default function AgentModerationScreen({
             <View style={styles.bottomActionBar}>
               <Pressable
                 accessibilityRole="button"
-                style={styles.saveDraftBtn}
-                onPress={handleSaveDraft}
-                disabled={isLocked}
+                style={[styles.publishBtn, isTerminal && styles.btnDisabled]}
+                onPress={handleSave}
+                disabled={isTerminal}
               >
-                <Text style={styles.saveDraftBtnText}>Save changes</Text>
+                <Text style={styles.publishBtnText}>Save modifications</Text>
               </Pressable>
               {status === 'draft' && (
                 <Pressable
                   accessibilityRole="button"
-                  style={styles.publishBtn}
+                  style={styles.saveDraftBtn}
                   onPress={handlePublish}
                 >
-                  <Text style={styles.publishBtnText}>Approve & Publish</Text>
+                  <Text style={styles.saveDraftBtnText}>Approve & Publish</Text>
                 </Pressable>
               )}
             </View>

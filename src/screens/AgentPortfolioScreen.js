@@ -16,6 +16,7 @@ import { authColors as colors } from '../styles/authTheme';
 export default function AgentPortfolioScreen({
   currentSession,
   onEditProperty,
+  onViewDetails,
   onAddProperty,
   onOpenChat,
 }) {
@@ -234,13 +235,24 @@ export default function AgentPortfolioScreen({
                     </Pressable>
                   </>
                 ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    style={[styles.actionBtn, { flex: 1 }]}
-                    onPress={() => onEditProperty && onEditProperty(item)}
-                  >
-                    <Text style={styles.actionBtnText}>Property details →</Text>
-                  </Pressable>
+                  <View style={styles.agentActionRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={[styles.actionBtn, { flex: 1 }]}
+                      onPress={() => onEditProperty && onEditProperty(item)}
+                    >
+                      <Text style={styles.actionBtnText}>Edit details</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={[styles.actionBtn, styles.detailsBtn, { flex: 1.2 }]}
+                      onPress={() => (onViewDetails ? onViewDetails(item) : onEditProperty(item))}
+                    >
+                      <Text style={[styles.actionBtnText, styles.detailsBtnText]}>
+                        Status & History →
+                      </Text>
+                    </Pressable>
+                  </View>
                 )}
               </View>
 
@@ -498,6 +510,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#2A2424',
+  },
+  agentActionRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  detailsBtn: {
+    backgroundColor: '#FAEDE9',
+    borderColor: '#B6311E',
+  },
+  detailsBtnText: {
+    color: '#B6311E',
   },
   cardChatBtn: {
     marginTop: 10,
