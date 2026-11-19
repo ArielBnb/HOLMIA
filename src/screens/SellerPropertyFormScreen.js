@@ -217,6 +217,7 @@ export default function SellerPropertyFormScreen() {
   const [deletingId, setDeletingId] = useState(null);
   const [listError, setListError] = useState('');
   const [agents, setAgents] = useState([]);
+  const [agentsError, setAgentsError] = useState('');
   const [view, setView] = useState('listings');
   const [thread, setThread] = useState(null);
   const inbox = useConversations(phase === 'ready');
@@ -244,7 +245,15 @@ export default function SellerPropertyFormScreen() {
       }
       setPhase('ready');
       await loadListings(me.id);
-      listAgents().then(setAgents).catch(() => setAgents([]));
+      listAgents()
+        .then((rows) => { setAgents(rows); setAgentsError(''); })
+        .catch((failure) => {
+          setAgents([]);
+          // PGRST202 = function not found: the messaging migration is not applied yet.
+          setAgentsError(failure?.code === 'PGRST202'
+            ? 'Agent list unavailable: apply migration 20261120120000_seller_agent_messaging.sql in Supabase.'
+            : `Agent list unavailable: ${failure?.message || 'unknown error'}`);
+        });
     } catch (failure) {
       setSaveError(describeError(failure));
       setPhase('signedOut');
@@ -496,7 +505,7 @@ export default function SellerPropertyFormScreen() {
                 </Field>
 
                 {values.representation === 'agent' && (
-                  <Field label="Agent *" error={errors.agentId} hint={agents.length === 0 ? 'No agent available right now.' : undefined}>
+                  <Field label="Agent *" error={errors.agentId || agentsError} hint={agents.length === 0 ? 'No agent account found in Supabase.' : undefined}>
                     <ChoiceGroup
                       options={agents.map((a) => ({ value: a.id, label: a.full_name || a.username || 'Agent' }))}
                       value={values.agentId}
