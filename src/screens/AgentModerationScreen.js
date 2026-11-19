@@ -13,16 +13,24 @@ import {
 import { updateProperty, createProperty } from '../services/propertyService';
 import { authColors as colors } from '../styles/authTheme';
 
-export default function AgentModerationScreen({ property: initialProperty, onBack, onSaved }) {
+export default function AgentModerationScreen({
+  property: initialProperty,
+  currentSession,
+  onBack,
+  onSaved,
+}) {
+  const userRole = currentSession?.role || 'seller';
+
   const defaultProperty = {
-    id: 'a0000000-0000-4000-8000-000000000001',
-    title: 'Bright Apartment in Central London',
-    description: 'Charming two-bedroom apartment with private balcony, close to tube station.',
-    price: '425000',
-    location: 'London, UK',
+    id: null,
+    title: '',
+    description: '',
+    price: '',
+    location: '',
     listing_type: 'sale',
     property_type: 'Flat',
     status: 'draft',
+    agent_id: null, // default direct
   };
 
   const prop = initialProperty || defaultProperty;
@@ -34,15 +42,21 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
   const [listingType, setListingType] = useState(prop.listing_type || 'sale');
   const [propertyType, setPropertyType] = useState(prop.property_type || 'Flat');
   const [status, setStatus] = useState(prop.status || 'draft');
+  const [agentModel, setAgentModel] = useState(prop.agent_id ? 'agent' : 'none'); // 'none' (direct) | 'agent'
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
 
   const isLocked = ['under_offer', 'sold', 'rented'].includes(status);
 
+  const getAgentIdValue = () => {
+    if (agentModel === 'none') return null;
+    return prop.agent_id || 'a0000000-0000-4000-8000-000000000002'; // Demo agent ID
+  };
+
   const handleSaveDraft = async () => {
     if (busy) return;
     setBusy(true);
-    setFeedback('Saving draft to Supabase...');
+    setFeedback('Saving draft...');
     const changes = {
       title: title.trim(),
       description: description.trim(),
@@ -50,6 +64,7 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
       location: location.trim(),
       listing_type: listingType,
       property_type: propertyType,
+      agent_id: getAgentIdValue(),
       status: 'draft',
     };
     try {
@@ -57,11 +72,11 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
         await updateProperty(prop.id, changes);
       }
       setStatus('draft');
-      setFeedback('✅ Draft saved to database (live for all users)!');
+      setFeedback('✅ Draft saved (Live in Supabase)!');
       if (onSaved) onSaved({ ...prop, ...changes });
     } catch (err) {
       setStatus('draft');
-      setFeedback(`Draft updated (${err.message})`);
+      setFeedback(`Draft saved locally (${err.message})`);
       if (onSaved) onSaved({ ...prop, ...changes });
     } finally {
       setBusy(false);
@@ -75,7 +90,7 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
       return;
     }
     setBusy(true);
-    setFeedback('Publishing listing to Supabase...');
+    setFeedback('Publishing listing...');
     const changes = {
       title: title.trim(),
       description: description.trim(),
@@ -83,6 +98,7 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
       location: location.trim(),
       listing_type: listingType,
       property_type: propertyType,
+      agent_id: getAgentIdValue(),
       status: 'active',
     };
     try {
@@ -90,11 +106,11 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
         await updateProperty(prop.id, changes);
       }
       setStatus('active');
-      setFeedback('✅ Listing published live to Supabase (visible to all users)!');
+      setFeedback('✅ Listing published live! Visible to all Buyers.');
       if (onSaved) onSaved({ ...prop, ...changes });
     } catch (err) {
       setStatus('active');
-      setFeedback(`Published (${err.message})`);
+      setFeedback(`Published locally (${err.message})`);
       if (onSaved) onSaved({ ...prop, ...changes });
     } finally {
       setBusy(false);
@@ -108,14 +124,19 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          {/* Figma Wireframe 11 Header */}
+          {/* Header matching Wireframe 11 */}
           <View style={styles.headerRow}>
             <Pressable onPress={() => onBack && onBack()} style={styles.backBtn}>
               <Text style={styles.backArrow}>←</Text>
             </Pressable>
-            <Text style={styles.headerTitle}>
-              {initialProperty ? 'Edit property' : 'New property'}
-            </Text>
+            <View>
+              <Text style={styles.headerTitle}>
+                {initialProperty ? 'Edit property' : 'New property'}
+              </Text>
+              <Text style={styles.headerSub}>
+                {userRole === 'seller' ? 'Seller listing' : 'Agent moderation'}
+              </Text>
+            </View>
           </View>
 
           {/* Form Fields matching Wireframe 11 */}
@@ -159,7 +180,7 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
             <View style={{ flex: 1 }}>
               <TextInput
                 style={styles.input}
-                placeholder="Location"
+                placeholder="Location (e.g. London, UK)"
                 placeholderTextColor="#888"
                 value={location}
                 onChangeText={setLocation}
@@ -206,7 +227,47 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
             ))}
           </View>
 
-          {/* Photo Boxes matching Wireframe 11 (+ Add | img | img in light pink/beige) */}
+          {/* Representation Model: Seller is NOT forced to use an Agent! */}
+          <View style={styles.representationBox}>
+            <Text style={styles.representationTitle}>Representation Model</Text>
+            <View style={styles.twoColRow}>
+              <Pressable
+                style={[styles.togglePill, agentModel === 'none' && styles.togglePillActive]}
+                onPress={() => !isLocked && setAgentModel('none')}
+                disabled={isLocked}
+              >
+                <Text
+                  style={[
+                    styles.togglePillText,
+                    agentModel === 'none' && styles.togglePillTextActive,
+                  ]}
+                >
+                  Direct (No Agent)
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.togglePill, agentModel === 'agent' && styles.togglePillActive]}
+                onPress={() => !isLocked && setAgentModel('agent')}
+                disabled={isLocked}
+              >
+                <Text
+                  style={[
+                    styles.togglePillText,
+                    agentModel === 'agent' && styles.togglePillTextActive,
+                  ]}
+                >
+                  Assign an Agent
+                </Text>
+              </Pressable>
+            </View>
+            <Text style={styles.representationNote}>
+              {agentModel === 'none'
+                ? '✓ Direct Seller listing: You manage offers and communicate directly with buyers.'
+                : '✓ Agent listing: An agent represents the property, moderates changes, and handles inquiries.'}
+            </Text>
+          </View>
+
+          {/* Photo Boxes matching Wireframe 11 (+ Add | img | img) */}
           <View style={styles.photoRow}>
             <View style={[styles.photoBox, styles.addPhotoBox]}>
               <Text style={styles.addPhotoText}>+ Add</Text>
@@ -219,11 +280,15 @@ export default function AgentModerationScreen({ property: initialProperty, onBac
             </View>
           </View>
 
-          {/* Figma wireframe note */}
           <Text style={styles.noteText}>note: some fields locked when Under Offer</Text>
 
           {feedback ? (
-            <Text style={[styles.feedbackText, feedback.includes('!') ? styles.successText : styles.infoText]}>
+            <Text
+              style={[
+                styles.feedbackText,
+                feedback.includes('!') ? styles.successText : styles.infoText,
+              ]}
+            >
               {feedback}
             </Text>
           ) : null}
@@ -259,91 +324,91 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
+    padding: 20,
     paddingBottom: 40,
+    backgroundColor: '#FFFFFF',
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    gap: 8,
   },
   backBtn: {
-    paddingVertical: 4,
-    paddingRight: 8,
+    marginRight: 12,
+    padding: 4,
   },
   backArrow: {
+    fontSize: 22,
+    color: '#2A2424',
+    fontWeight: '600',
+  },
+  headerTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: '#2A2424',
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2A2424',
+  headerSub: {
+    fontSize: 12,
+    color: '#666',
+    textTransform: 'capitalize',
   },
   formGroup: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
   input: {
-    height: 48,
     borderWidth: 1,
     borderColor: '#2A2424',
     borderRadius: 8,
     paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 14,
     color: '#2A2424',
     backgroundColor: '#FFFFFF',
   },
-  textarea: {
-    height: 90,
-    paddingTop: 12,
-    textAlignVertical: 'top',
-  },
   inputLocked: {
-    opacity: 0.6,
-    backgroundColor: '#EBE8DF',
+    backgroundColor: '#F5F5F5',
+    color: '#888',
+  },
+  textarea: {
+    minHeight: 90,
+    textAlignVertical: 'top',
   },
   twoColRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
+    gap: 10,
+    marginBottom: 12,
   },
   togglePill: {
     flex: 1,
-    height: 46,
     borderWidth: 1,
     borderColor: '#2A2424',
     borderRadius: 8,
-    justifyContent: 'center',
+    paddingVertical: 12,
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
   togglePillActive: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
+    backgroundColor: '#2A2424',
   },
   togglePillText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#2A2424',
   },
   togglePillTextActive: {
-    fontWeight: '700',
+    color: '#FFFFFF',
   },
   typeSelectorRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   typePill: {
     flex: 1,
-    paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#2A2424',
     borderRadius: 8,
-    justifyContent: 'center',
+    paddingVertical: 8,
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
@@ -352,51 +417,73 @@ const styles = StyleSheet.create({
   },
   typePillText: {
     fontSize: 12,
-    color: '#2A2424',
     fontWeight: '600',
+    color: '#2A2424',
   },
   typePillTextActive: {
     color: '#FFFFFF',
   },
+  representationBox: {
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 14,
+    backgroundColor: '#FAFAFA',
+  },
+  representationTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2A2424',
+    marginBottom: 8,
+  },
+  representationNote: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#555',
+    marginTop: 2,
+  },
   photoRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
+    gap: 10,
+    marginBottom: 12,
   },
   photoBox: {
-    width: 76,
+    flex: 1,
     height: 70,
+    backgroundColor: '#EED9D5',
     borderRadius: 8,
-    backgroundColor: '#EEDCD7',
     justifyContent: 'center',
     alignItems: 'center',
   },
   addPhotoBox: {
-    backgroundColor: '#EEDCD7',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#B6311E',
   },
   addPhotoText: {
     fontSize: 13,
-    color: '#2A2424',
     fontWeight: '600',
+    color: '#B6311E',
   },
   photoText: {
     fontSize: 12,
-    color: '#666666',
+    color: '#8A5D57',
   },
   noteText: {
-    fontSize: 12,
-    color: '#555555',
+    fontSize: 11,
+    color: '#666',
     fontStyle: 'italic',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   feedbackText: {
     fontSize: 13,
-    marginBottom: 16,
-    textAlign: 'center',
     fontWeight: '600',
+    marginBottom: 14,
+    textAlign: 'center',
   },
   successText: {
-    color: '#2E7D32',
+    color: '#008000',
   },
   infoText: {
     color: '#B6311E',
@@ -408,33 +495,31 @@ const styles = StyleSheet.create({
   },
   saveDraftBtn: {
     flex: 1,
-    height: 48,
     borderWidth: 1,
     borderColor: '#2A2424',
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
+    paddingVertical: 14,
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
   saveDraftBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#2A2424',
   },
   publishBtn: {
     flex: 1,
-    height: 48,
-    borderRadius: 8,
     backgroundColor: '#B6311E',
-    justifyContent: 'center',
+    borderRadius: 8,
+    paddingVertical: 14,
     alignItems: 'center',
-  },
-  publishBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
   btnDisabled: {
     opacity: 0.5,
+  },
+  publishBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

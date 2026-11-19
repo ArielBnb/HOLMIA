@@ -5,66 +5,65 @@ import {
   StyleSheet,
   Text,
   View,
-  Pressable
+  Pressable,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { colors } from '../styles/theme';
 
 export default function RoleAccessScreen({ currentSession, onSwitchRole }) {
   const currentRole = currentSession?.role || 'buyer';
 
   const roleFeatures = {
     buyer: {
-      title: 'Espace Acheteur / Locataire (Buyer)',
-      description: 'Accès en lecture au catalogue et soumission des propositions.',
+      title: 'Buyer & Tenant Workspace',
+      description: 'Read-only catalogue access and offer / application submissions.',
       permissions: [
-        { label: 'Consulter le catalogue actif', allowed: true },
-        { label: 'Rechercher et filtrer les biens', allowed: true },
-        { label: 'Soumettre une offre d’achat', allowed: true },
-        { label: 'Déposer une candidature de location', allowed: true },
-        { label: 'Créer une annonce immobilière', allowed: false },
-        { label: 'Modifier les annonces du catalogue', allowed: false },
-        { label: 'Modérer / Activer des annonces', allowed: false },
+        { label: 'Browse active property catalogue', allowed: true },
+        { label: 'Search and filter listings', allowed: true },
+        { label: 'Submit purchase offer', allowed: true },
+        { label: 'Submit rental application', allowed: true },
+        { label: 'Create a property listing', allowed: false },
+        { label: 'Edit catalogue listings', allowed: false },
+        { label: 'Moderate / activate listings', allowed: false },
       ],
       sampleData: [
-        { title: 'Appartement lumineux à Paris', price: '425 000 €', status: 'Actif', action: 'Offre soumise : 410 000 €' },
-        { title: 'Maison familiale à Lyon', price: '580 000 €', status: 'Actif', action: 'Enregistré dans les favoris' },
-      ]
+        { title: 'Bright Apartment in Central London', price: '£425,000', status: 'Active', action: 'Offer submitted: £410,000' },
+        { title: 'Spacious Family House in Manchester', price: '£580,000', status: 'Active', action: 'Saved to favourites' },
+      ],
     },
     seller: {
-      title: 'Espace Vendeur (Seller)',
-      description: 'Gestion autonome de vos annonces et suivi des offres reçues.',
+      title: 'Seller Workspace',
+      description: 'Manage owned listings, direct sales, and incoming offers.',
       permissions: [
-        { label: 'Créer une annonce (Vente ou Location)', allowed: true },
-        { label: 'Modifier ses propres annonces', allowed: true },
-        { label: 'Supprimer ses propres annonces', allowed: true },
-        { label: 'Examiner et accepter les offres reçues', allowed: true },
-        { label: 'Modifier les biens d’un autre vendeur', allowed: false },
-        { label: 'Soumettre des offres d’achat Buyer', allowed: false },
-        { label: 'Modérer le catalogue général', allowed: false },
+        { label: 'Create a listing (Sale or Rent)', allowed: true },
+        { label: 'Edit owned properties', allowed: true },
+        { label: 'Delete owned properties', allowed: true },
+        { label: 'Review and accept received offers', allowed: true },
+        { label: 'Edit another seller’s property', allowed: false },
+        { label: 'Submit buyer purchase offers', allowed: false },
+        { label: 'Moderate public catalogue', allowed: false },
       ],
       sampleData: [
-        { title: 'Mon Bien : Studio Rennes', price: '165 000 €', status: 'Brouillon (Draft)', action: 'Prêt pour validation' },
-        { title: 'Mon Bien : Appartement Paris', price: '425 000 €', status: 'Sous offre (Under Offer)', action: '1 offre acceptée' },
-      ]
+        { title: 'My Listing: Studio in Oxford', price: '£650 / mo', status: 'Draft', action: 'Ready for review' },
+        { title: 'My Listing: Apartment in London', price: '£425,000', status: 'Under Offer', action: '1 offer accepted' },
+      ],
     },
     agent: {
-      title: 'Espace Agent Immobilier (Agent)',
-      description: 'Portefeuille de biens assignés, modération et suivi des transactions.',
+      title: 'Estate Agent Workspace',
+      description: 'Assigned property portfolio, moderation, lifecycle and transactions.',
       permissions: [
-        { label: 'Voir son portefeuille de biens assignés', allowed: true },
-        { label: 'Modérer et activer les brouillons assignés', allowed: true },
-        { label: 'Modifier les détails des biens assignés', allowed: true },
-        { label: 'Calculer les statistiques de performance', allowed: true },
-        { label: 'Créer des annonces en tant que vendeur', allowed: false },
-        { label: 'Modifier des biens non assignés', allowed: false },
-        { label: 'Supprimer les biens du vendeur', allowed: false },
+        { label: 'View assigned property portfolio', allowed: true },
+        { label: 'Moderate and activate assigned drafts', allowed: true },
+        { label: 'Edit assigned property details', allowed: true },
+        { label: 'Calculate performance metrics', allowed: true },
+        { label: 'Create properties as seller', allowed: false },
+        { label: 'Modify unassigned properties', allowed: false },
+        { label: 'Delete seller properties', allowed: false },
       ],
       sampleData: [
-        { title: 'Bien assigné : Villa Marseille', price: '720 000 €', status: 'Assigné à l’agent', action: 'Brouillon modéré & activé' },
-        { title: 'Bien assigné : T3 Nantes', price: '290 000 €', status: 'Assigné à l’agent', action: 'Portefeuille actif' },
-      ]
-    }
+        { title: 'Assigned: Converted Loft in Birmingham', price: '£310,000', status: 'Assigned to Agent', action: 'Draft moderated & activated' },
+        { title: 'Assigned: Riverside Flat in Bristol', price: '£1,150 / mo', status: 'Assigned to Agent', action: 'Active portfolio' },
+      ],
+    },
   };
 
   const activeInfo = roleFeatures[currentRole] || roleFeatures.buyer;
@@ -74,8 +73,8 @@ export default function RoleAccessScreen({ currentSession, onSwitchRole }) {
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.brand}>HOLMIA</Text>
-        <Text style={styles.heading}>Session & Contrôle d'Accès</Text>
-        <Text style={styles.subheading}>Tâche ABD · Rôles Buyer, Seller & Agent</Text>
+        <Text style={styles.heading}>Session & Access Control</Text>
+        <Text style={styles.subheading}>Team Deliverable · Roles: Buyer, Seller & Agent</Text>
 
         {/* Role Switcher Toolbar */}
         <View style={styles.roleTabs}>
@@ -100,7 +99,7 @@ export default function RoleAccessScreen({ currentSession, onSwitchRole }) {
           <Text style={styles.roleTitle}>{activeInfo.title}</Text>
           <Text style={styles.roleDesc}>{activeInfo.description}</Text>
 
-          <Text style={styles.sectionHeader}>Matrice des autorisations :</Text>
+          <Text style={styles.sectionHeader}>Permissions Matrix:</Text>
           {activeInfo.permissions.map((p, index) => (
             <View key={index} style={styles.permRow}>
               <Text style={p.allowed ? styles.checkIcon : styles.crossIcon}>
@@ -112,7 +111,7 @@ export default function RoleAccessScreen({ currentSession, onSwitchRole }) {
             </View>
           ))}
 
-          <Text style={styles.sectionHeader}>Données de démonstration du rôle :</Text>
+          <Text style={styles.sectionHeader}>Role Demonstration Data:</Text>
           {activeInfo.sampleData.map((d, index) => (
             <View key={index} style={styles.dataRow}>
               <View style={{ flex: 1 }}>
@@ -129,7 +128,7 @@ export default function RoleAccessScreen({ currentSession, onSwitchRole }) {
 
         <View style={styles.footerNote}>
           <Text style={styles.footerText}>
-            Validé par 101 tests automatisés (CRUD SQLite + SessionService).
+            Validated by 101 automated tests (SQLite CRUD + SessionService).
           </Text>
         </View>
       </ScrollView>
@@ -138,16 +137,18 @@ export default function RoleAccessScreen({ currentSession, onSwitchRole }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   content: { padding: 24, paddingTop: 40, maxWidth: 600, width: '100%', alignSelf: 'center' },
-  brand: { fontSize: 32, fontWeight: '800', color: colors.primary, letterSpacing: 3 },
-  heading: { fontSize: 22, fontWeight: '700', color: colors.primary, marginTop: 6 },
-  subheading: { fontSize: 14, color: colors.secondary, marginBottom: 18 },
+  brand: { fontSize: 32, fontWeight: '800', color: '#2A2424', letterSpacing: 3 },
+  heading: { fontSize: 22, fontWeight: '700', color: '#2A2424', marginTop: 6 },
+  subheading: { fontSize: 14, color: '#666666', marginBottom: 18 },
   roleTabs: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8E4',
-    borderRadius: 12,
-    padding: 4,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    padding: 3,
     marginBottom: 20,
     gap: 4,
   },
@@ -155,47 +156,47 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 8,
   },
   roleTabActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#2A2424',
   },
   roleTabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
+    color: '#2A2424',
   },
   roleTabTextActive: {
-    color: '#FFF',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#DDE4E0',
+    borderColor: '#2A2424',
   },
   roleTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primary,
+    color: '#2A2424',
     marginBottom: 6,
   },
   roleDesc: {
     fontSize: 14,
-    color: colors.secondary,
+    color: '#555555',
     lineHeight: 20,
     marginBottom: 16,
   },
   sectionHeader: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
+    color: '#2A2424',
     marginTop: 14,
     marginBottom: 10,
     borderTopWidth: 1,
-    borderTopColor: '#EEF2F0',
+    borderTopColor: '#EEEEEE',
     paddingTop: 14,
   },
   permRow: {
@@ -213,41 +214,41 @@ const styles = StyleSheet.create({
   crossIcon: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#C62828',
+    color: '#B6311E',
     width: 20,
   },
   permLabel: {
     fontSize: 14,
-    color: '#222',
+    color: '#2A2424',
   },
   permDisabled: {
-    color: '#888',
+    color: '#888888',
     textDecorationLine: 'line-through',
   },
   dataRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#F9FAF9',
-    borderRadius: 10,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 8,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E7ECE9',
+    borderColor: '#E5E5E5',
   },
   dataTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
+    color: '#2A2424',
   },
   dataAction: {
     fontSize: 12,
-    color: colors.secondary,
+    color: '#666666',
     marginTop: 3,
   },
   dataPrice: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
+    color: '#2A2424',
   },
   dataBadge: {
     fontSize: 11,
@@ -264,7 +265,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: colors.secondary,
+    color: '#777777',
   },
 });
-

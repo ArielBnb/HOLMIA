@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -7,13 +14,14 @@ import EmailConfirmationScreen from '../screens/EmailConfirmationScreen';
 import AgentPortfolioScreen from '../screens/AgentPortfolioScreen';
 import AgentModerationScreen from '../screens/AgentModerationScreen';
 import PropertyLifecycleScreen from '../screens/PropertyLifecycleScreen';
-import DatabaseTestScreen from '../screens/DatabaseTestScreen';
+import MessagesScreen from '../screens/MessagesScreen';
 import { authStyles as s } from '../styles/authTheme';
 
-function RoleHome({ profile }) {
+function MainHome({ profile }) {
   const { signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('listings');
   const [editingProperty, setEditingProperty] = useState(null);
+  const [chatConvId, setChatConvId] = useState(null);
 
   const handleEditProperty = (prop) => {
     setEditingProperty(prop);
@@ -25,10 +33,17 @@ function RoleHome({ profile }) {
     setActiveTab('add');
   };
 
+  const handleOpenChat = (conversationId) => {
+    setChatConvId(conversationId);
+    setActiveTab('messages');
+  };
+
+  // Wireframe Navigation + Messages
   const tabs = [
     { id: 'listings', label: 'My listings' },
     { id: 'add', label: 'Add' },
     { id: 'lifecycle', label: 'Lifecycle' },
+    { id: 'messages', label: 'Messages' },
     { id: 'profile', label: 'Profile' },
   ];
 
@@ -36,34 +51,65 @@ function RoleHome({ profile }) {
     <SafeAreaView style={styles.container}>
       {/* Screen Content */}
       <View style={styles.content}>
+        {/* Wireframe 10: My listings */}
         {activeTab === 'listings' && (
           <AgentPortfolioScreen
             currentSession={profile}
             onEditProperty={handleEditProperty}
             onAddProperty={handleAddProperty}
+            onOpenChat={handleOpenChat}
           />
         )}
+
+        {/* Wireframe 11: Add / Edit Property */}
         {activeTab === 'add' && (
           <AgentModerationScreen
             property={editingProperty}
+            currentSession={profile}
             onBack={() => setActiveTab('listings')}
             onSaved={() => setActiveTab('listings')}
           />
         )}
+
+        {/* Wireframe 12: Offers & Property Lifecycle */}
         {activeTab === 'lifecycle' && (
           <PropertyLifecycleScreen
             currentSession={profile}
             onBack={() => setActiveTab('listings')}
+            onOpenChat={handleOpenChat}
           />
         )}
+
+        {/* Communication System: Agent-Seller, Seller-Buyer (direct), Agent-Buyer */}
+        {activeTab === 'messages' && (
+          <MessagesScreen
+            currentSession={profile}
+            initialConversationId={chatConvId}
+            onBackToNav={() => setActiveTab('listings')}
+          />
+        )}
+
+        {/* Profile */}
         {activeTab === 'profile' && (
           <View style={styles.profileContainer}>
             <Text style={styles.profileTitle}>Profile</Text>
+
             <View style={styles.profileCard}>
-              <Text style={styles.profileName}>{profile.full_name || profile.username || 'User'}</Text>
-              <Text style={styles.profileMeta}>Role: <Text style={{ fontWeight: '700', textTransform: 'capitalize' }}>{profile.role}</Text></Text>
-              {profile.email ? <Text style={styles.profileMeta}>Email: {profile.email}</Text> : null}
-              {profile.username ? <Text style={styles.profileMeta}>Username: {profile.username}</Text> : null}
+              <Text style={styles.profileName}>
+                {profile.full_name || profile.username || 'User'}
+              </Text>
+              <Text style={styles.profileMeta}>
+                Role:{' '}
+                <Text style={{ fontWeight: '700', textTransform: 'capitalize', color: '#B6311E' }}>
+                  {profile.role || 'agent'}
+                </Text>
+              </Text>
+              {profile.email ? (
+                <Text style={styles.profileMeta}>Email: {profile.email}</Text>
+              ) : null}
+              {profile.username ? (
+                <Text style={styles.profileMeta}>Username: {profile.username}</Text>
+              ) : null}
             </View>
 
             <Pressable
@@ -77,7 +123,7 @@ function RoleHome({ profile }) {
         )}
       </View>
 
-      {/* Figma Bottom Navigation Bar (Screens 10, 11, 12) */}
+      {/* Figma Bottom Navigation Bar (pure white #FFFFFF) */}
       <View style={styles.bottomNav}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -87,6 +133,7 @@ function RoleHome({ profile }) {
               style={styles.navItem}
               onPress={() => {
                 if (tab.id === 'add') setEditingProperty(null);
+                if (tab.id !== 'messages') setChatConvId(null);
                 setActiveTab(tab.id);
               }}
             >
@@ -122,24 +169,42 @@ export default function AuthNavigator() {
   if (session && !profile) {
     return (
       <View style={[s.page, { padding: 32, justifyContent: 'center', gap: 16 }]}>
-        <Text accessibilityRole="alert" style={s.error}>{error || 'Unable to load profile'}</Text>
-        <Pressable accessibilityRole="button" onPress={retry}><Text style={s.link}>Retry</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => signOut().catch(() => {})}><Text style={s.link}>Logout</Text></Pressable>
+        <Text accessibilityRole="alert" style={s.error}>
+          {error || 'Unable to load profile'}
+        </Text>
+        <Pressable accessibilityRole="button" onPress={retry}>
+          <Text style={s.link}>Retry</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => signOut().catch(() => {})}>
+          <Text style={s.link}>Logout</Text>
+        </Pressable>
       </View>
     );
   }
 
-  if (profile) return <RoleHome key={profile.id + profile.role} profile={profile} />;
+  if (profile) return <MainHome key={profile.id} profile={profile} />;
+
   if (screen === 'register') {
-    return <RegisterScreen onLogin={login} onContinue={(val) => { setRegistration(val); setScreen('email'); }} />;
+    return (
+      <RegisterScreen
+        onLogin={login}
+        onContinue={(val) => {
+          setRegistration(val);
+          setScreen('email');
+        }}
+      />
+    );
   }
+
   if (screen === 'email') {
     return (
       <EmailConfirmationScreen
         registration={registration}
-        onBack={() => { setRegistration(null); setScreen('register'); }}
-        onLogin={login}
-        onRegistered={() => setRegistration(null)}
+        onBack={() => {
+          setRegistration(null);
+          setScreen('register');
+        }}
+        onComplete={login}
       />
     );
   }
@@ -154,58 +219,17 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  profileContainer: {
-    flex: 1,
-    padding: 24,
     backgroundColor: '#FFFFFF',
   },
-  profileTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#2A2424',
-    marginBottom: 16,
-  },
-  profileCard: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 16,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2A2424',
-    marginBottom: 6,
-  },
-  profileMeta: {
-    fontSize: 14,
-    color: '#555555',
-    marginBottom: 4,
-  },
-  logoutBtn: {
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#B6311E',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoutBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  // Figma Wireframe Bottom Bar
   bottomNav: {
     flexDirection: 'row',
-    height: 54,
+    height: 60,
     borderTopWidth: 1,
     borderTopColor: '#2A2424',
     backgroundColor: '#FFFFFF',
     justifyContent: 'space-around',
     alignItems: 'center',
+    paddingHorizontal: 6,
   },
   navItem: {
     flex: 1,
@@ -214,12 +238,56 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   navLabel: {
-    fontSize: 13,
-    color: '#777777',
+    fontSize: 12,
     fontWeight: '500',
+    color: '#888888',
   },
   navLabelActive: {
-    color: '#2A2424',
     fontWeight: '700',
+    color: '#2A2424',
+  },
+  profileContainer: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'flex-start',
+    backgroundColor: '#FFFFFF',
+  },
+  profileTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#2A2424',
+    marginBottom: 20,
+  },
+  profileCard: {
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 10,
+    padding: 18,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 24,
+    gap: 8,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2A2424',
+    marginBottom: 4,
+  },
+  profileMeta: {
+    fontSize: 14,
+    color: '#444444',
+  },
+  logoutBtn: {
+    borderWidth: 1,
+    borderColor: '#B6311E',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  logoutBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#B6311E',
   },
 });
