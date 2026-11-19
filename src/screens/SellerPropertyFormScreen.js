@@ -22,6 +22,7 @@ import {
   LIMITS,
   LISTING_TYPES,
   PROPERTY_TYPES,
+  REPRESENTATIONS,
   SIMULATED_IMAGES,
   buildPropertyPayload,
   validatePropertyForm,
@@ -34,6 +35,8 @@ import {
   formValuesFromProperty,
   statusLabel,
 } from '../services/propertyEditRules';
+import { listAgents } from '../services/messageService';
+import PropertyMessages, { useConversations } from '../components/PropertyMessages';
 import { colors } from '../styles/theme';
 
 const border = '#DBE1DC';
@@ -144,7 +147,7 @@ function SignInPanel() {
   );
 }
 
-function ListingCard({ item, isEditing, confirmingDelete, deleting, onEdit, onAskDelete, onCancelDelete, onConfirmDelete }) {
+function ListingCard({ item, agentName, isEditing, confirmingDelete, deleting, onEdit, onAskDelete, onCancelDelete, onConfirmDelete, onMessageAgent }) {
   const deletable = canDeleteProperty(item);
   return (
     <View style={[styles.listing, isEditing && styles.listingEditing]}>
@@ -156,8 +159,14 @@ function ListingCard({ item, isEditing, confirmingDelete, deleting, onEdit, onAs
           </Text>
           <Text style={styles.listingTitle} numberOfLines={2}>{item.title}</Text>
           <Text style={styles.listingMeta}>{item.location} · {formatPrice(item)}</Text>
+          <Text style={styles.listingMeta}>{item.agent_id ? `Agent: ${agentName || 'Assigned agent'}` : 'Direct sale · buyers contact you'}</Text>
         </View>
       </View>
+      {item.agent_id && !confirmingDelete ? (
+        <Pressable accessibilityRole="button" style={styles.messageButton} onPress={onMessageAgent}>
+          <Text style={styles.secondaryButtonText}>💬 Message {agentName || 'agent'}</Text>
+        </Pressable>
+      ) : null}
 
       {confirmingDelete ? (
         <View style={styles.confirmBox} accessibilityRole="alert">
@@ -207,6 +216,10 @@ export default function SellerPropertyFormScreen() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [listError, setListError] = useState('');
+  const [agents, setAgents] = useState([]);
+  const [view, setView] = useState('listings');
+  const [thread, setThread] = useState(null);
+  const inbox = useConversations(phase === 'ready');
 
   const loadListings = useCallback(async (sellerId) => {
     try {
@@ -231,6 +244,7 @@ export default function SellerPropertyFormScreen() {
       }
       setPhase('ready');
       await loadListings(me.id);
+      listAgents().then(setAgents).catch(() => setAgents([]));
     } catch (failure) {
       setSaveError(describeError(failure));
       setPhase('signedOut');
@@ -332,9 +346,21 @@ export default function SellerPropertyFormScreen() {
       setProfile(null);
       setListings([]);
       setNotice(null);
+      setThread(null);
+      setView('listings');
       resetForm();
       setPhase('signedOut');
     }
+  };
+
+  const agentName = (id) => {
+    const agent = agents.find((a) => a.id === id);
+    return agent ? agent.full_name || agent.username || 'Agent' : '';
+  };
+  const openAgentThread = (item) => {
+    setThread({ propertyId: item.id, propertyTitle: item.title, otherId: item.agent_id, otherName: agentName(item.agent_id) || 'Agent', otherRole: 'agent' });
+    setView('messages');
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
   const errorCount = Object.keys(errors).length;
@@ -350,7 +376,7 @@ export default function SellerPropertyFormScreen() {
           <Text style={styles.heading}>{editing ? 'Edit listing' : 'Create a listing'}</Text>
           <Text style={styles.meta}>
             {editing
-              ? 'Update your listing. Price, transaction type and property type are locked once an offer is accepted.'
+              ? 'Update your listing. Price, transaction type, property type and agent are locked once an offer is accepted.'
               : 'New listings are saved as Draft. Only you can see them until they are published.'}
           </Text>
 
@@ -377,6 +403,36 @@ export default function SellerPropertyFormScreen() {
           )}
 
           {phase === 'ready' && (
+            <View style={styles.segment}>
+              {[
+                { id: 'listings', label: 'My listings' },
+                { id: 'messages', label: inbox.unread > 0 ? `Messages (${inbox.unread})` : 'Messages' },
+              ].map((tab) => (
+                <Pressable
+                  key={tab.id}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: view === tab.id }}
+                  style={[styles.segmentItem, view === tab.id && styles.segmentItemActive]}
+                  onPress={() => { setView(tab.id); if (tab.id === 'messages') inbox.refresh(); }}
+                >
+                  <Text style={[styles.segmentText, view === tab.id && styles.segmentTextActive]}>{tab.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {phase === 'ready' && view === 'messages' && (
+            <PropertyMessages
+              meId={profile.id}
+              conversations={inbox.conversations}
+              onRefresh={inbox.refresh}
+              active={thread}
+              onOpen={setThread}
+              onClose={() => { setThread(null); inbox.refresh(); }}
+            />
+          )}
+
+          {phase === 'ready' && view === 'listings' && (
             <>
               {notice && (
                 <View style={styles.success} accessibilityRole="alert">
@@ -429,6 +485,27 @@ export default function SellerPropertyFormScreen() {
                 <Field label="Property type *" error={errors.propertyType} hint={lockHint}>
                   <ChoiceGroup options={PROPERTY_TYPES} value={values.propertyType} onChange={update('propertyType')} invalid={!!errors.propertyType} disabled={termsLocked} />
                 </Field>
+
+                <Field
+                  label="Representation *"
+                  hint={lockHint || (values.representation === 'agent'
+                    ? 'Your agent manages offers and buyers talk to the agent.'
+                    : 'You sell directly: buyers message you.')}
+                >
+                  <ChoiceGroup options={REPRESENTATIONS} value={values.representation} onChange={update('representation')} disabled={termsLocked} />
+                </Field>
+
+                {values.representation === 'agent' && (
+                  <Field label="Agent *" error={errors.agentId} hint={agents.length === 0 ? 'No agent available right now.' : undefined}>
+                    <ChoiceGroup
+                      options={agents.map((a) => ({ value: a.id, label: a.full_name || a.username || 'Agent' }))}
+                      value={values.agentId}
+                      onChange={update('agentId')}
+                      invalid={!!errors.agentId}
+                      disabled={termsLocked}
+                    />
+                  </Field>
+                )}
 
                 <Field label="Location *" error={errors.location}>
                   <TextInput
@@ -490,6 +567,8 @@ export default function SellerPropertyFormScreen() {
                 <ListingCard
                   key={item.id}
                   item={item}
+                  agentName={agentName(item.agent_id)}
+                  onMessageAgent={() => openAgentThread(item)}
                   isEditing={editing?.id === item.id}
                   confirmingDelete={confirmDeleteId === item.id}
                   deleting={deletingId === item.id}
@@ -567,4 +646,10 @@ const styles = StyleSheet.create({
   dangerButtonText: { color: '#FFFFFF', fontWeight: '700' },
   confirmBox: { backgroundColor: '#FDECEA', marginHorizontal: 12, marginTop: 4, borderRadius: 10, paddingVertical: 10, gap: 8 },
   confirmText: { color: danger, fontWeight: '600', paddingHorizontal: 12 },
+  messageButton: { borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingVertical: 9, alignItems: 'center', marginHorizontal: 12, marginTop: 8 },
+  segment: { flexDirection: 'row', backgroundColor: '#E7EFEA', borderRadius: 12, padding: 4, gap: 4 },
+  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
+  segmentItemActive: { backgroundColor: '#FFFFFF' },
+  segmentText: { color: colors.secondary, fontWeight: '600' },
+  segmentTextActive: { color: colors.primary, fontWeight: '700' },
 });

@@ -87,4 +87,16 @@ test('payload requires an owner', () => {
   assert.throws(() => buildPropertyPayload(valid, null), /Seller/);
 });
 
+test('with an agent: agent must be chosen, then sent as agent_id', () => {
+  assert.equal(validatePropertyForm({ ...valid, representation: 'agent', agentId: '' }).agentId, 'Choose an agent, or switch to Direct.');
+  const values = { ...valid, representation: 'agent', agentId: 'agent-uuid' };
+  assert.deepEqual(validatePropertyForm(values), {});
+  assert.equal(buildPropertyPayload(values, 'seller-uuid').agent_id, 'agent-uuid');
+});
+
+test('direct listing ignores a previously picked agent', () => {
+  const payload = buildPropertyPayload({ ...valid, representation: 'direct', agentId: 'agent-uuid' }, 'seller-uuid');
+  assert.equal('agent_id' in payload, false);
+});
+
 console.log(`${passed} tests passed`);

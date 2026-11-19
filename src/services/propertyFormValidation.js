@@ -17,6 +17,12 @@ export const PROPERTY_TYPES = [
   { value: 'office', label: 'Office' },
 ];
 
+// A Seller is never forced to use an Agent.
+export const REPRESENTATIONS = [
+  { value: 'direct', label: 'Direct (no agent)' },
+  { value: 'agent', label: 'With an agent' },
+];
+
 // Simulated photos: stable placeholder URLs, no upload or storage bucket needed.
 export const SIMULATED_IMAGES = [
   { id: 'living-room', label: 'Living room', url: 'https://picsum.photos/seed/holmia-living-room/800/600' },
@@ -45,6 +51,8 @@ export const EMPTY_FORM = {
   propertyType: '',
   location: '',
   imageUrl: SIMULATED_IMAGES[0].url,
+  representation: 'direct',
+  agentId: '',
 };
 
 // Accepts "425000", "425 000", "1150.50" or "1150,50". Returns NaN when invalid.
@@ -93,8 +101,15 @@ export function validatePropertyForm(values) {
     errors.imageUrl = 'Image must be an https URL.';
   }
 
+  if (values.representation === 'agent' && !values.agentId) {
+    errors.agentId = 'Choose an agent, or switch to Direct.';
+  }
+
   return errors;
 }
+
+// agent_id column value for the chosen representation.
+export const agentIdFromForm = (values) => (values.representation === 'agent' && values.agentId ? values.agentId : null);
 
 // Row for public.properties. The owner comes from the authenticated session and
 // every new listing starts as a draft; neither is editable in the form.
@@ -110,5 +125,7 @@ export function buildPropertyPayload(values, sellerId) {
     location: values.location.trim(),
     image_url: values.imageUrl || null,
     status: 'draft',
+    // Omitted for direct listings; Supabase checks the id belongs to an Agent.
+    ...(agentIdFromForm(values) ? { agent_id: agentIdFromForm(values) } : {}),
   };
 }

@@ -84,4 +84,18 @@ test('deletion blocked once under offer, sold or rented', () => {
   assert.equal(deleteBlockedReason(base), '');
 });
 
+test('switching between direct and agent sends agent_id', () => {
+  const values = formValuesFromProperty(base);
+  assert.equal(values.representation, 'direct');
+  assert.deepEqual(buildPropertyChanges(base, { ...values, representation: 'agent', agentId: 'a1' }), { agent_id: 'a1' });
+  const withAgent = { ...base, agent_id: 'a1' };
+  assert.deepEqual(buildPropertyChanges(withAgent, { ...formValuesFromProperty(withAgent), representation: 'direct' }), { agent_id: null });
+});
+
+test('agent locked once under offer', () => {
+  const p = { ...base, status: 'under_offer', agent_id: 'a1' };
+  assert.throws(() => buildPropertyChanges(p, { ...formValuesFromProperty(p), representation: 'direct' }), /locked/);
+  assert.throws(() => buildPropertyChanges(p, { ...formValuesFromProperty(p), agentId: 'a2' }), /locked/);
+});
+
 console.log(`${passed} tests passed`);

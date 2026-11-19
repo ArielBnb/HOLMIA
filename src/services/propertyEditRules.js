@@ -1,13 +1,13 @@
 // Seller edit/delete rules. Same rules as the local repository
 // (src/repositories/propertyRepository.ts) and the Supabase triggers
 // (supabase/migrations/20261119120000_seller_edit_delete_rules.sql).
-import { parsePrice } from './propertyFormValidation.js';
+import { agentIdFromForm, parsePrice } from './propertyFormValidation.js';
 
 // Once an offer is accepted the commercial terms are frozen.
 export const LOCKED_STATUSES = ['under_offer', 'sold', 'rented'];
 
 // Form keys whose database columns are frozen in LOCKED_STATUSES.
-export const LOCKED_FIELDS = ['price', 'listingType', 'propertyType'];
+export const LOCKED_FIELDS = ['price', 'listingType', 'propertyType', 'agentId'];
 
 const COLUMN_FOR = {
   title: 'title',
@@ -17,6 +17,7 @@ const COLUMN_FOR = {
   propertyType: 'property_type',
   location: 'location',
   imageUrl: 'image_url',
+  agentId: 'agent_id',
 };
 
 const STATUS_LABELS = {
@@ -51,12 +52,14 @@ export function formValuesFromProperty(property) {
     propertyType: property.property_type ?? '',
     location: property.location ?? '',
     imageUrl: property.image_url ?? '',
+    representation: property.agent_id ? 'agent' : 'direct',
+    agentId: property.agent_id ?? '',
   };
 }
 
 // Returns only the columns that actually changed. Throws if a locked field
 // was changed on a listing that is Under Offer / Sold / Rented. Never touches
-// seller_id, agent_id or status: ownership and lifecycle are handled elsewhere.
+// seller_id or status: ownership and lifecycle are handled elsewhere.
 export function buildPropertyChanges(original, values) {
   const next = {
     title: values.title.trim(),
@@ -66,6 +69,7 @@ export function buildPropertyChanges(original, values) {
     propertyType: values.propertyType,
     location: values.location.trim(),
     imageUrl: values.imageUrl || null,
+    agentId: agentIdFromForm(values),
   };
   const current = {
     title: original.title,
@@ -75,6 +79,7 @@ export function buildPropertyChanges(original, values) {
     propertyType: original.property_type,
     location: original.location,
     imageUrl: original.image_url ?? null,
+    agentId: original.agent_id ?? null,
   };
 
   const changes = {};
@@ -85,7 +90,7 @@ export function buildPropertyChanges(original, values) {
   if (areTermsLocked(original)) {
     const blocked = LOCKED_FIELDS.filter((key) => COLUMN_FOR[key] in changes);
     if (blocked.length > 0) {
-      throw new Error(`Price, transaction type and property type are locked while the listing is ${statusLabel(original.status)}.`);
+      throw new Error(`Price, transaction type, property type and agent are locked while the listing is ${statusLabel(original.status)}.`);
     }
   }
   return changes;
