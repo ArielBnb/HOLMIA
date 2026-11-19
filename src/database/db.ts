@@ -56,6 +56,17 @@ export interface Offer {
 
 export type RentalStatus = 'pending' | 'accepted' | 'rejected';
 
+export interface Enquiry {
+  id: string;
+  property_id: string;
+  buyer_id: string;
+  message: string;
+  reply: string | null;
+  replied_by: string | null;
+  replied_at: string | null;
+  created_at: string;
+}
+
 export interface RentalApplication {
   id: string;
   property_id: string;
@@ -142,6 +153,19 @@ export class SQLiteDatabase {
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS enquiries (
+        id TEXT PRIMARY KEY,
+        property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+        buyer_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        message TEXT NOT NULL CHECK (length(trim(message)) BETWEEN 1 AND 2000),
+        reply TEXT CHECK (reply IS NULL OR length(trim(reply)) BETWEEN 1 AND 2000),
+        replied_by TEXT REFERENCES users(id),
+        replied_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        CHECK ((reply IS NULL) = (replied_at IS NULL))
+      );
+      CREATE INDEX IF NOT EXISTS idx_enquiries_prop ON enquiries(property_id);
 
       CREATE INDEX IF NOT EXISTS idx_properties_seller ON properties(seller_id);
       CREATE INDEX IF NOT EXISTS idx_properties_agent ON properties(agent_id);

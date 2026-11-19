@@ -1,10 +1,12 @@
 import { SQLiteDatabase, getDatabase } from '../database/db.ts';
-import type { User, UserRole, Property, PropertyStatus, ListingType, Offer, RentalApplication } from '../database/db.ts';
+import type { User, UserRole, Property, PropertyStatus, ListingType, Offer, RentalApplication, Enquiry } from '../database/db.ts';
 import { UserRepository } from '../repositories/userRepository.ts';
 import { PropertyRepository } from '../repositories/propertyRepository.ts';
 import type { PropertyFilters, CreatePropertyInput, UpdatePropertyInput } from '../repositories/propertyRepository.ts';
 import { OfferRepository } from '../repositories/offerRepository.ts';
 import { RentalRepository } from '../repositories/rentalRepository.ts';
+import { EnquiryRepository } from '../repositories/enquiryRepository.ts';
+import type { ReceivedEnquiry } from '../repositories/enquiryRepository.ts';
 
 export class AuthenticationError extends Error {
   constructor(message: string) {
@@ -33,6 +35,7 @@ export class SessionService {
   private propertyRepo: PropertyRepository;
   private offerRepo: OfferRepository;
   private rentalRepo: RentalRepository;
+  private enquiryRepo: EnquiryRepository;
   private currentUser: User | null = null;
 
   constructor(db?: SQLiteDatabase) {
@@ -41,6 +44,7 @@ export class SessionService {
     this.propertyRepo = new PropertyRepository(this.db);
     this.offerRepo = new OfferRepository(this.db);
     this.rentalRepo = new RentalRepository(this.db);
+    this.enquiryRepo = new EnquiryRepository(this.db);
   }
 
   // ==========================================
@@ -330,6 +334,47 @@ export class SessionService {
     }
 
     return this.offerRepo.rejectOffer(offerId);
+  }
+
+  // ==========================================
+  // Enquiries (Buyer asks, owner Seller / assigned Agent replies)
+  // ==========================================
+
+  public submitEnquiry(propertyId: string, message: string): Enquiry {
+    const user = this.requireRole('buyer');
+    return this.enquiryRepo.create({ property_id: propertyId, buyer_id: user.id, message });
+  }
+
+  /** Seller: enquiries on own properties. Agent: on assigned properties. */
+  public getReceivedEnquiries(): ReceivedEnquiry[] {
+    const user = this.requireRole(['seller', 'agent']);
+    const props = this.propertyRepo.findAll(user.role === 'seller' ? { sellerId: user.id } : { agentId: user.id });
+    return this.enquiryRepo.findForProperties(props.map((p) => p.id));
+  }
+
+  public replyToEnquiry(enquiryId: string, reply: string): Enquiry {
+    const user = this.requireRole(['seller', 'agent']);
+    const enquiry = this.enquiryRepo.findById(enquiryId);
+    if (!enquiry) {
+      throw new Error(`Enquiry '${enquiryId}' not found`);
+    }
+    const prop = this.propertyRepo.findById(enquiry.property_id);
+    if (!prop) {
+      throw new Error(`Property '${enquiry.property_id}' not found`);
+    }
+    if (user.role === 'seller' && prop.seller_id !== user.id) {
+      throw new AccessDeniedError('Seller can only reply to enquiries on their own properties');
+    }
+    if (user.role === 'agent' && prop.agent_id !== user.id) {
+      throw new AccessDeniedError('Agent can only reply to enquiries on assigned properties');
+    }
+    return this.enquiryRepo.reply(enquiryId, reply, user.id);
+  }
+
+  /** Buyer: own enquiries, with the stored reply. */
+  public getMyEnquiries(): Enquiry[] {
+    const user = this.requireRole('buyer');
+    return this.enquiryRepo.findByBuyer(user.id);
   }
 
   // ==========================================
