@@ -7,6 +7,7 @@ import RoleAccessScreen from './src/screens/RoleAccessScreen';
 import AgentPortfolioScreen from './src/screens/AgentPortfolioScreen';
 import AgentModerationScreen from './src/screens/AgentModerationScreen';
 import PropertyLifecycleScreen from './src/screens/PropertyLifecycleScreen';
+import SellerPropertyFormScreen from './src/screens/SellerPropertyFormScreen';
 import { colors } from './src/styles/theme';
 
 export default function App() {
@@ -60,6 +61,8 @@ export default function App() {
         return <AgentModerationScreen currentSession={currentSession} />;
       case 'lifecycle':
         return <PropertyLifecycleScreen currentSession={currentSession} />;
+      case 'sell':
+        return <SellerPropertyFormScreen />;
       default:
         return <LoginScreen />;
     }
@@ -73,6 +76,7 @@ export default function App() {
     { id: 'portfolio', label: 'Portfolio', icon: '🏢' },
     { id: 'moderation', label: 'Modération', icon: '✏️' },
     { id: 'lifecycle', label: 'Cycle', icon: '🔄' },
+    { id: 'sell', label: 'Sell', icon: '➕' },
   ];
 
   return (
@@ -126,8 +130,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   navItem: {
+    flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 2,
     paddingVertical: 4,
     borderRadius: 8,
   },
