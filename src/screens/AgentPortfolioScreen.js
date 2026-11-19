@@ -11,24 +11,33 @@ import {
 import { getProperties } from '../services/propertyService';
 import { authColors as colors } from '../styles/authTheme';
 
-export default function AgentPortfolioScreen({ currentSession, onEditProperty, onAddProperty }) {
+export default function AgentPortfolioScreen({
+  currentSession,
+  onEditProperty,
+  onAddProperty,
+  onOpenChat,
+}) {
+  const userRole = currentSession?.role || 'seller';
   const [properties, setProperties] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
 
   const loadPortfolio = useCallback(async () => {
     try {
-      // 1. Attempt to fetch real properties from Supabase
       const remote = await getProperties({ activeOnly: false });
       if (remote && remote.length > 0) {
-        setProperties(remote.map((p) => ({
-          ...p,
-          offersCount: p.offersCount || (p.status === 'under_offer' ? 2 : p.status === 'active' ? 1 : 0),
-        })));
+        setProperties(
+          remote.map((p) => ({
+            ...p,
+            offersCount:
+              p.offersCount ||
+              (p.status === 'under_offer' ? 2 : p.status === 'active' ? 1 : 0),
+          }))
+        );
         return;
       }
     } catch (err) {
-      // Fallback if offline
+      // Fallback
     }
 
     const sample = [
@@ -41,7 +50,20 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
         property_type: 'Flat',
         location: 'London, UK',
         status: 'active',
+        agent_id: 'user-agent-1', // Represented
         offersCount: 2,
+      },
+      {
+        id: 'a0000000-0000-4000-8000-000000000002',
+        title: 'Spacious Family House in Manchester',
+        description: 'Four-bedroom detached family home with private landscaped garden. Direct from owner.',
+        price: 580000,
+        listing_type: 'sale',
+        property_type: 'House',
+        location: 'Manchester, UK',
+        status: 'under_offer',
+        agent_id: null, // NO AGENT - Direct Seller!
+        offersCount: 3,
       },
       {
         id: 'a0000000-0000-4000-8000-000000000003',
@@ -52,29 +74,8 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
         property_type: 'Studio',
         location: 'Oxford, UK',
         status: 'draft',
+        agent_id: 'user-agent-1', // Represented
         offersCount: 0,
-      },
-      {
-        id: 'a0000000-0000-4000-8000-000000000002',
-        title: 'Spacious Family House in Manchester',
-        description: 'Four-bedroom detached family home with private landscaped garden.',
-        price: 580000,
-        listing_type: 'sale',
-        property_type: 'House',
-        location: 'Manchester, UK',
-        status: 'under_offer',
-        offersCount: 3,
-      },
-      {
-        id: 'a0000000-0000-4000-8000-000000000005',
-        title: 'Industrial Converted Loft in Birmingham',
-        description: 'Open-plan warehouse conversion with exposed brickwork and mezzanine.',
-        price: 310000,
-        listing_type: 'sale',
-        property_type: 'Loft',
-        location: 'Birmingham, UK',
-        status: 'sold',
-        offersCount: 1,
       },
       {
         id: 'a0000000-0000-4000-8000-000000000004',
@@ -85,17 +86,19 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
         property_type: 'Flat',
         location: 'Bristol, UK',
         status: 'rented',
+        agent_id: null, // Direct Seller
         offersCount: 4,
       },
       {
-        id: 'a0000000-0000-4000-8000-000000000006',
-        title: 'Detached House in Cambridge',
-        description: 'Three-bedroom house with large south-facing garden.',
-        price: 1450,
-        listing_type: 'rent',
-        property_type: 'House',
-        location: 'Cambridge, UK',
-        status: 'active',
+        id: 'a0000000-0000-4000-8000-000000000005',
+        title: 'Industrial Converted Loft in Birmingham',
+        description: 'Open-plan warehouse conversion with exposed brickwork and mezzanine.',
+        price: 310000,
+        listing_type: 'sale',
+        property_type: 'Loft',
+        location: 'Birmingham, UK',
+        status: 'sold',
+        agent_id: 'user-agent-1',
         offersCount: 1,
       },
     ];
@@ -111,6 +114,10 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
     await loadPortfolio();
     setRefreshing(false);
   }, [loadPortfolio]);
+
+  const handleDelete = (id) => {
+    setProperties((prev) => prev.filter((p) => p.id !== id));
+  };
 
   const filtered = filter === 'all' ? properties : properties.filter((p) => p.status === filter);
 
@@ -128,9 +135,14 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Figma Header (10 - My listings) */}
+        {/* Figma Header (Screen 10 - My listings) */}
         <View style={styles.headerRow}>
-          <Text style={styles.pageTitle}>My listings</Text>
+          <View>
+            <Text style={styles.pageTitle}>My listings</Text>
+            <Text style={styles.roleSubTitle}>
+              {userRole === 'seller' ? 'Seller Portfolio' : 'Agent Assigned Portfolio'}
+            </Text>
+          </View>
           <Pressable
             accessibilityRole="button"
             style={styles.addIconBtn}
@@ -141,7 +153,11 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
         </View>
 
         {/* Filter Pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
           {['all', 'active', 'draft', 'under_offer', 'sold', 'rented'].map((st) => (
             <Pressable
               key={st}
@@ -156,43 +172,86 @@ export default function AgentPortfolioScreen({ currentSession, onEditProperty, o
         </ScrollView>
 
         {/* Property Cards matching Figma Wireframe 10 */}
-        {filtered.map((item) => (
-          <View key={item.id} style={styles.card}>
-            {/* Top Row: Property Name + Status Badge */}
-            <View style={styles.cardHeader}>
-              <Text style={styles.propertyName} numberOfLines={1}>
-                {item.title}
+        {filtered.map((item) => {
+          const hasAgent = Boolean(item.agent_id);
+          return (
+            <View key={item.id} style={styles.card}>
+              {/* Top Row: Property Name + Status Badge */}
+              <View style={styles.cardHeader}>
+                <Text style={styles.propertyName} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    item.status === 'active' && styles.statusBadgeActive,
+                  ]}
+                >
+                  <Text style={styles.statusText}>{statusLabel[item.status] || item.status}</Text>
+                </View>
+              </View>
+
+              {/* Subtitle: Price · Type · nb offers */}
+              <Text style={styles.propertySubtitle}>
+                £{Number(item.price).toLocaleString('en-GB')}
+                {item.listing_type === 'rent' ? '/mo' : ''} · {item.listing_type === 'sale' ? 'Sale' : 'Rent'} · {item.offersCount} offer{item.offersCount !== 1 ? 's' : ''}
               </Text>
-              <View style={[styles.statusBadge, item.status === 'active' && styles.statusBadgeActive]}>
-                <Text style={styles.statusText}>{statusLabel[item.status] || item.status}</Text>
+
+              {/* Representation Model Pill */}
+              <View style={styles.repRow}>
+                <View
+                  style={[
+                    styles.repBadge,
+                    hasAgent ? styles.repAgentBadge : styles.repDirectBadge,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.repBadgeText,
+                      hasAgent ? styles.repAgentText : styles.repDirectText,
+                    ]}
+                  >
+                    {hasAgent ? 'With Agent' : 'Direct (No Agent)'}
+                  </Text>
+                </View>
+                <Text style={styles.repExplain}>
+                  {hasAgent ? 'Represented by Agent' : 'Managed directly by owner'}
+                </Text>
+              </View>
+
+              {/* Action Buttons matching Wireframe 10:
+                  Seller: Edit | Delete
+                  Agent: Edit | Moderate */}
+              <View style={styles.cardActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.actionBtn}
+                  onPress={() => onEditProperty && onEditProperty(item)}
+                >
+                  <Text style={styles.actionBtnText}>Edit</Text>
+                </Pressable>
+
+                {userRole === 'seller' ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.actionBtn, styles.deleteBtn]}
+                    onPress={() => handleDelete(item.id)}
+                  >
+                    <Text style={styles.actionBtnText}>Delete</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    style={styles.actionBtn}
+                    onPress={() => onEditProperty && onEditProperty(item)}
+                  >
+                    <Text style={styles.actionBtnText}>Moderate</Text>
+                  </Pressable>
+                )}
               </View>
             </View>
-
-            {/* Subtitle: Price · Type · nb offers */}
-            <Text style={styles.propertySubtitle}>
-              £{Number(item.price).toLocaleString('en-GB')}
-              {item.listing_type === 'rent' ? '/mo' : ''} · {item.listing_type === 'sale' ? 'Sale' : 'Rent'} · {item.offersCount} offer{item.offersCount !== 1 ? 's' : ''}
-            </Text>
-
-            {/* Two Side-by-Side Action Buttons: Edit / Moderate */}
-            <View style={styles.cardActions}>
-              <Pressable
-                accessibilityRole="button"
-                style={styles.actionBtn}
-                onPress={() => onEditProperty && onEditProperty(item)}
-              >
-                <Text style={styles.actionBtnText}>Edit</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                style={styles.actionBtn}
-                onPress={() => onEditProperty && onEditProperty(item)}
-              >
-                <Text style={styles.actionBtnText}>Moderate</Text>
-              </Pressable>
-            </View>
-          </View>
-        ))}
+          );
+        })}
 
         {filtered.length === 0 && (
           <View style={styles.emptyContainer}>
@@ -210,9 +269,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
+    padding: 20,
     paddingBottom: 40,
+    backgroundColor: '#FFFFFF',
   },
   headerRow: {
     flexDirection: 'row',
@@ -221,33 +280,41 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   pageTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
     color: '#2A2424',
+  },
+  roleSubTitle: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
   },
   addIconBtn: {
     width: 38,
     height: 38,
+    borderWidth: 1,
+    borderColor: '#2A2424',
     borderRadius: 8,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
   addIconText: {
-    fontSize: 30,
-    lineHeight: 32,
+    fontSize: 24,
+    lineHeight: 26,
     color: '#2A2424',
     fontWeight: '400',
   },
   filterRow: {
     gap: 8,
-    paddingBottom: 16,
+    marginBottom: 18,
   },
   filterPill: {
     borderWidth: 1,
     borderColor: '#2A2424',
     borderRadius: 16,
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     backgroundColor: '#FFFFFF',
   },
   filterPillActive: {
@@ -255,21 +322,19 @@ const styles = StyleSheet.create({
   },
   filterPillText: {
     fontSize: 12,
+    fontWeight: '600',
     color: '#2A2424',
-    fontWeight: '500',
   },
   filterPillTextActive: {
     color: '#FFFFFF',
-    fontWeight: '700',
   },
-  // Figma Card (Wireframe 10)
   card: {
     borderWidth: 1,
     borderColor: '#2A2424',
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 16,
+    marginBottom: 16,
     backgroundColor: '#FFFFFF',
-    marginBottom: 14,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -289,21 +354,56 @@ const styles = StyleSheet.create({
     borderColor: '#2A2424',
     borderRadius: 14,
     paddingHorizontal: 10,
-    paddingVertical: 2,
+    paddingVertical: 3,
     backgroundColor: '#FFFFFF',
   },
   statusBadgeActive: {
-    backgroundColor: '#EBE8DF',
+    borderColor: '#2A2424',
+    backgroundColor: '#FAFAFA',
   },
   statusText: {
     fontSize: 11,
-    color: '#2A2424',
     fontWeight: '600',
+    color: '#2A2424',
   },
   propertySubtitle: {
     fontSize: 13,
     color: '#555555',
-    marginBottom: 14,
+    marginBottom: 8,
+  },
+  repRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  repBadge: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  repAgentBadge: {
+    borderColor: '#B6311E',
+    backgroundColor: '#FFF5F4',
+  },
+  repAgentText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B6311E',
+  },
+  repDirectBadge: {
+    borderColor: '#2A2424',
+    backgroundColor: '#F5F5F5',
+  },
+  repDirectText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2A2424',
+  },
+  repExplain: {
+    fontSize: 11,
+    color: '#777',
   },
   cardActions: {
     flexDirection: 'row',
@@ -311,25 +411,27 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    height: 40,
     borderWidth: 1,
     borderColor: '#2A2424',
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
+    paddingVertical: 10,
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  deleteBtn: {
+    borderColor: '#888',
   },
   actionBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#2A2424',
   },
   emptyContainer: {
-    padding: 30,
+    padding: 40,
     alignItems: 'center',
   },
   emptyText: {
-    color: '#666666',
     fontSize: 14,
+    color: '#777',
   },
 });
