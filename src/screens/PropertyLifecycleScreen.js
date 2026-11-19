@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -7,7 +7,7 @@ import {
   View,
   Pressable,
 } from 'react-native';
-import { updateProperty } from '../services/propertyService';
+import { getProperties, updateProperty } from '../services/propertyService';
 import { notifyOfferAction, startOrFindConversation } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
 
@@ -19,111 +19,50 @@ export default function PropertyLifecycleScreen({
   onOpenChat,
 }) {
   const [activeTab, setActiveTab] = useState('lifecycle'); // 'lifecycle' | 'offers'
-  const [selectedPropId, setSelectedPropId] = useState(initialProperty?.id || 'prop-1');
+  const [selectedPropId, setSelectedPropId] = useState(initialProperty?.id || 'a0000000-0000-4000-8000-000000000001');
   const [message, setMessage] = useState('');
 
   // Sample properties with full lifecycle history
-  const [properties, setProperties] = useState([
-    {
-      id: 'prop-1',
-      title: 'Central London Flat',
-      listing_type: 'sale',
-      price: 425000,
-      status: 'under_offer',
-      history: [
-        {
-          id: 'h1',
-          from: 'Created',
-          to: 'Draft',
-          actor: 'Demo Seller',
-          date: '10 Nov 2026, 10:00',
-          notes: 'Listing created by seller.',
-        },
-        {
-          id: 'h2',
-          from: 'Draft',
-          to: 'Active',
-          actor: 'Demo Agent',
-          date: '12 Nov 2026, 14:30',
-          notes: 'Listing approved and activated by agent.',
-        },
-        {
-          id: 'h3',
-          from: 'Active',
-          to: 'Under Offer',
-          actor: 'System',
-          date: '16 Nov 2026, 09:15',
-          notes: 'Offer of £420,000 accepted by seller.',
-        },
-      ],
-    },
-    {
-      id: 'prop-2',
-      title: 'Oxford Student Studio',
-      listing_type: 'rent',
-      price: 650,
-      status: 'active',
-      history: [
-        {
-          id: 'h4',
-          from: 'Created',
-          to: 'Draft',
-          actor: 'Demo Seller',
-          date: '12 Nov 2026, 09:00',
-          notes: 'Rental studio draft submitted.',
-        },
-        {
-          id: 'h5',
-          from: 'Draft',
-          to: 'Active',
-          actor: 'Demo Agent',
-          date: '13 Nov 2026, 11:20',
-          notes: 'Verified and activated for student market.',
-        },
-      ],
-    },
-    {
-      id: 'prop-3',
-      title: 'Birmingham Converted Loft',
-      listing_type: 'sale',
-      price: 310000,
-      status: 'sold',
-      history: [
-        {
-          id: 'h6',
-          from: 'Created',
-          to: 'Draft',
-          actor: 'Demo Seller',
-          date: '15 Oct 2026, 11:00',
-          notes: 'Property created.',
-        },
-        {
-          id: 'h7',
-          from: 'Draft',
-          to: 'Active',
-          actor: 'Demo Agent',
-          date: '18 Oct 2026, 15:45',
-          notes: 'Published to public catalogue.',
-        },
-        {
-          id: 'h8',
-          from: 'Active',
-          to: 'Under Offer',
-          actor: 'System',
-          date: '02 Nov 2026, 10:30',
-          notes: 'Offer of £305,000 accepted.',
-        },
-        {
-          id: 'h9',
-          from: 'Under Offer',
-          to: 'Sold',
-          actor: 'Demo Agent',
-          date: '14 Nov 2026, 16:00',
-          notes: 'Conveyancing finalized, deed signed. Status is now terminal.',
-        },
-      ],
-    },
-  ]);
+  const [properties, setProperties] = useState([]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const all = await getProperties({ activeOnly: false });
+        if (all && all.length > 0) {
+          const agentOnly = all.filter(
+            (p) => p.agent_id !== null && p.agent_id !== undefined && p.status !== 'draft'
+          );
+          if (agentOnly.length > 0) {
+            setProperties(
+              agentOnly.map((p) => ({
+                ...p,
+                history:
+                  p.history && p.history.length > 0
+                    ? p.history
+                    : [
+                        {
+                          id: 'h-' + p.id,
+                          from: 'Draft',
+                          to: p.status.charAt(0).toUpperCase() + p.status.slice(1).replace('_', ' '),
+                          actor: 'Demo Agent',
+                          date: '15 Nov 2026, 10:00',
+                          notes: 'Status initialized',
+                        },
+                      ],
+              }))
+            );
+            if (initialProperty?.id) {
+              setSelectedPropId(initialProperty.id);
+            } else {
+              setSelectedPropId(agentOnly[0].id);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    load();
+  }, [initialProperty]);
 
   const [offers, setOffers] = useState([
     {
@@ -155,7 +94,17 @@ export default function PropertyLifecycleScreen({
     },
   ]);
 
-  const selectedProp = properties.find((p) => p.id === selectedPropId) || properties[0];
+  const selectedProp =
+    properties.find((p) => p.id === selectedPropId) ||
+    initialProperty ||
+    properties[0] || {
+      id: 'default',
+      title: 'Managed Property',
+      status: 'active',
+      price: 425000,
+      listing_type: 'sale',
+      history: [],
+    };
 
   const handleTransition = async (newStatus, notes) => {
     const fromStatus = selectedProp.status;

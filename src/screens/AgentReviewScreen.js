@@ -24,34 +24,9 @@ export default function AgentReviewScreen({ currentSession, onEditProperty, onOp
         const pendingReview = all.filter(
           (p) => p.status === 'draft' && p.agent_id !== null && p.agent_id !== undefined
         );
-        if (pendingReview.length > 0) {
-          setDrafts(pendingReview);
-          return;
-        }
+        setDrafts(pendingReview);
       }
     } catch (e) {}
-
-    // Fallback sample drafts for Agent review matching Wireframe 16
-    setDrafts([
-      {
-        id: 'a0000000-0000-4000-8000-000000000003',
-        title: 'Furnished Student Studio in Oxford',
-        seller_name: 'Demo Seller',
-        price: 650,
-        listing_type: 'rent',
-        location: 'Oxford, UK',
-        status: 'draft',
-      },
-      {
-        id: 'a0000000-0000-4000-8000-000000000007',
-        title: 'Modern 2-Bed Flat in Cambridge',
-        seller_name: 'Demo Seller',
-        price: 1350,
-        listing_type: 'rent',
-        location: 'Cambridge, UK',
-        status: 'draft',
-      },
-    ]);
   };
 
   useEffect(() => {
