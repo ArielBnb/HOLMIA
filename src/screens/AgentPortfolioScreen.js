@@ -144,21 +144,25 @@ export default function AgentPortfolioScreen({
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Figma Header (Screen 10 - My listings) */}
+        {/* Figma Header matching Wireframe 14 for Agent */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.pageTitle}>My listings</Text>
+            <Text style={styles.pageTitle}>
+              {userRole === 'agent' ? 'Managed properties' : 'My listings'}
+            </Text>
             <Text style={styles.roleSubTitle}>
-              {userRole === 'seller' ? 'Seller Portfolio' : 'Agent Assigned Portfolio'}
+              {userRole === 'agent' ? 'Assigned listings portfolio' : 'Seller portfolio'}
             </Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            style={styles.addIconBtn}
-            onPress={() => onAddProperty && onAddProperty()}
-          >
-            <Text style={styles.addIconText}>+</Text>
-          </Pressable>
+          {userRole === 'seller' && (
+            <Pressable
+              accessibilityRole="button"
+              style={styles.addIconBtn}
+              onPress={() => onAddProperty && onAddProperty()}
+            >
+              <Text style={styles.addIconText}>+</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Filter Pills */}
@@ -200,61 +204,65 @@ export default function AgentPortfolioScreen({
                 </View>
               </View>
 
-              {/* Subtitle: Price · Type · nb offers */}
+              {/* Subtitle: Seller · Price matching Wireframe 14 */}
               <Text style={styles.propertySubtitle}>
-                £{Number(item.price).toLocaleString('en-GB')}
-                {item.listing_type === 'rent' ? '/mo' : ''} · {item.listing_type === 'sale' ? 'Sale' : 'Rent'} · {item.offersCount} offer{item.offersCount !== 1 ? 's' : ''}
+                {userRole === 'agent'
+                  ? `Seller: ${item.seller_name || 'Demo Seller'} · £${Number(item.price).toLocaleString('en-GB')}${item.listing_type === 'rent' ? '/mo' : ''} · ${item.offersCount} offer${item.offersCount !== 1 ? 's' : ''}`
+                  : `£${Number(item.price).toLocaleString('en-GB')}${item.listing_type === 'rent' ? '/mo' : ''} · ${item.listing_type === 'sale' ? 'Sale' : 'Rent'} · ${item.offersCount} offer${item.offersCount !== 1 ? 's' : ''}`}
               </Text>
 
-              {/* Representation Model Pill */}
-              <View style={styles.repRow}>
-                <View
-                  style={[
-                    styles.repBadge,
-                    hasAgent ? styles.repAgentBadge : styles.repDirectBadge,
-                  ]}
-                >
-                  <Text
+              {/* Representation Model Pill (Relevant for Seller only) */}
+              {userRole === 'seller' && (
+                <View style={styles.repRow}>
+                  <View
                     style={[
-                      styles.repBadgeText,
-                      hasAgent ? styles.repAgentText : styles.repDirectText,
+                      styles.repBadge,
+                      hasAgent ? styles.repAgentBadge : styles.repDirectBadge,
                     ]}
                   >
-                    {hasAgent ? 'With Agent' : 'Direct (No Agent)'}
+                    <Text
+                      style={[
+                        styles.repBadgeText,
+                        hasAgent ? styles.repAgentText : styles.repDirectText,
+                      ]}
+                    >
+                      {hasAgent ? 'With Agent' : 'Direct (No Agent)'}
+                    </Text>
+                  </View>
+                  <Text style={styles.repExplain}>
+                    {hasAgent ? 'Represented by Agent' : 'Managed directly by owner'}
                   </Text>
                 </View>
-                <Text style={styles.repExplain}>
-                  {hasAgent ? 'Represented by Agent' : 'Managed directly by owner'}
-                </Text>
-              </View>
+              )}
 
-              {/* Action Buttons matching Wireframe 10:
+              {/* Action Buttons:
                   Seller: Edit | Delete
-                  Agent: Edit | Moderate */}
+                  Agent: Property details (Wireframe 15) */}
               <View style={styles.cardActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  style={styles.actionBtn}
-                  onPress={() => onEditProperty && onEditProperty(item)}
-                >
-                  <Text style={styles.actionBtnText}>Edit</Text>
-                </Pressable>
-
                 {userRole === 'seller' ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    style={[styles.actionBtn, styles.deleteBtn]}
-                    onPress={() => handleDelete(item.id)}
-                  >
-                    <Text style={styles.actionBtnText}>Delete</Text>
-                  </Pressable>
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={styles.actionBtn}
+                      onPress={() => onEditProperty && onEditProperty(item)}
+                    >
+                      <Text style={styles.actionBtnText}>Edit</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={[styles.actionBtn, styles.deleteBtn]}
+                      onPress={() => handleDelete(item.id)}
+                    >
+                      <Text style={styles.actionBtnText}>Delete</Text>
+                    </Pressable>
+                  </>
                 ) : (
                   <Pressable
                     accessibilityRole="button"
-                    style={styles.actionBtn}
+                    style={[styles.actionBtn, { flex: 1 }]}
                     onPress={() => onEditProperty && onEditProperty(item)}
                   >
-                    <Text style={styles.actionBtnText}>Moderate</Text>
+                    <Text style={styles.actionBtnText}>Property details →</Text>
                   </Pressable>
                 )}
               </View>

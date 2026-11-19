@@ -142,7 +142,9 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>
-            <Text style={styles.screenTitle}>Messages</Text>
+            <Text style={styles.screenTitle}>
+              {role === 'agent' ? 'Enquiries' : 'Messages'}
+            </Text>
             <View style={styles.roleBadge}>
               <Text style={styles.roleBadgeText}>{role.toUpperCase()}</Text>
             </View>
