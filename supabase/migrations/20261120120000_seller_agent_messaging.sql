@@ -1,5 +1,5 @@
 -- Seller representation (direct or with an Agent) and real property messaging.
--- Requires 20261119120000_seller_edit_delete_rules.sql.
+-- Requires 20261119130000_seller_edit_delete_rules.sql.
 --
 -- Who can talk to whom, per property (same rules as src/services/chatService.js):
 --   with an Agent : Seller <-> Agent, Agent <-> Buyer

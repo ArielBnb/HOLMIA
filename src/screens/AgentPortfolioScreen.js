@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { getProperties } from '../services/propertyService';
+import { contactAgentForTerms, startOrFindConversation } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
 
 export default function AgentPortfolioScreen({
@@ -23,11 +24,19 @@ export default function AgentPortfolioScreen({
   const [filter, setFilter] = useState('all');
 
   const loadPortfolio = useCallback(async () => {
+    const filterByRole = (list) => {
+      // In Agent mode: properties without agents (Direct Seller listings) MUST NOT appear in feed
+      if (userRole === 'agent') {
+        return list.filter((p) => p.agent_id !== null && p.agent_id !== undefined);
+      }
+      return list;
+    };
+
     try {
       const remote = await getProperties({ activeOnly: false });
       if (remote && remote.length > 0) {
         setProperties(
-          remote.map((p) => ({
+          filterByRole(remote).map((p) => ({
             ...p,
             offersCount:
               p.offersCount ||
@@ -102,8 +111,8 @@ export default function AgentPortfolioScreen({
         offersCount: 1,
       },
     ];
-    setProperties(sample);
-  }, []);
+    setProperties(filterByRole(sample));
+  }, [userRole]);
 
   useEffect(() => {
     loadPortfolio();
@@ -135,21 +144,25 @@ export default function AgentPortfolioScreen({
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Figma Header (Screen 10 - My listings) */}
+        {/* Figma Header matching Wireframe 14 for Agent */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.pageTitle}>My listings</Text>
+            <Text style={styles.pageTitle}>
+              {userRole === 'agent' ? 'Managed properties' : 'My listings'}
+            </Text>
             <Text style={styles.roleSubTitle}>
-              {userRole === 'seller' ? 'Seller Portfolio' : 'Agent Assigned Portfolio'}
+              {userRole === 'agent' ? 'Assigned listings portfolio' : 'Seller portfolio'}
             </Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            style={styles.addIconBtn}
-            onPress={() => onAddProperty && onAddProperty()}
-          >
-            <Text style={styles.addIconText}>+</Text>
-          </Pressable>
+          {userRole === 'seller' && (
+            <Pressable
+              accessibilityRole="button"
+              style={styles.addIconBtn}
+              onPress={() => onAddProperty && onAddProperty()}
+            >
+              <Text style={styles.addIconText}>+</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Filter Pills */}
@@ -191,64 +204,134 @@ export default function AgentPortfolioScreen({
                 </View>
               </View>
 
-              {/* Subtitle: Price · Type · nb offers */}
+              {/* Subtitle: Seller · Price matching Wireframe 14 */}
               <Text style={styles.propertySubtitle}>
-                £{Number(item.price).toLocaleString('en-GB')}
-                {item.listing_type === 'rent' ? '/mo' : ''} · {item.listing_type === 'sale' ? 'Sale' : 'Rent'} · {item.offersCount} offer{item.offersCount !== 1 ? 's' : ''}
+                {userRole === 'agent'
+                  ? `Seller: ${item.seller_name || 'Demo Seller'} · £${Number(item.price).toLocaleString('en-GB')}${item.listing_type === 'rent' ? '/mo' : ''} · ${item.offersCount} offer${item.offersCount !== 1 ? 's' : ''}`
+                  : `£${Number(item.price).toLocaleString('en-GB')}${item.listing_type === 'rent' ? '/mo' : ''} · ${item.listing_type === 'sale' ? 'Sale' : 'Rent'} · ${item.offersCount} offer${item.offersCount !== 1 ? 's' : ''}`}
               </Text>
 
-              {/* Representation Model Pill */}
-              <View style={styles.repRow}>
-                <View
-                  style={[
-                    styles.repBadge,
-                    hasAgent ? styles.repAgentBadge : styles.repDirectBadge,
-                  ]}
-                >
-                  <Text
+              {/* Representation Model Pill (Relevant for Seller only) */}
+              {userRole === 'seller' && (
+                <View style={styles.repRow}>
+                  <View
                     style={[
-                      styles.repBadgeText,
-                      hasAgent ? styles.repAgentText : styles.repDirectText,
+                      styles.repBadge,
+                      hasAgent ? styles.repAgentBadge : styles.repDirectBadge,
                     ]}
                   >
-                    {hasAgent ? 'With Agent' : 'Direct (No Agent)'}
+                    <Text
+                      style={[
+                        styles.repBadgeText,
+                        hasAgent ? styles.repAgentText : styles.repDirectText,
+                      ]}
+                    >
+                      {hasAgent ? 'With Agent' : 'Direct (No Agent)'}
+                    </Text>
+                  </View>
+                  <Text style={styles.repExplain}>
+                    {hasAgent ? 'Represented by Agent' : 'Managed directly by owner'}
                   </Text>
                 </View>
-                <Text style={styles.repExplain}>
-                  {hasAgent ? 'Represented by Agent' : 'Managed directly by owner'}
-                </Text>
-              </View>
+              )}
 
-              {/* Action Buttons matching Wireframe 10:
+              {/* Action Buttons:
                   Seller: Edit | Delete
-                  Agent: Edit | Moderate */}
+                  Agent: Property details (Wireframe 15) */}
               <View style={styles.cardActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  style={styles.actionBtn}
-                  onPress={() => onEditProperty && onEditProperty(item)}
-                >
-                  <Text style={styles.actionBtnText}>Edit</Text>
-                </Pressable>
-
                 {userRole === 'seller' ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    style={[styles.actionBtn, styles.deleteBtn]}
-                    onPress={() => handleDelete(item.id)}
-                  >
-                    <Text style={styles.actionBtnText}>Delete</Text>
-                  </Pressable>
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={styles.actionBtn}
+                      onPress={() => onEditProperty && onEditProperty(item)}
+                    >
+                      <Text style={styles.actionBtnText}>Edit</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={[styles.actionBtn, styles.deleteBtn]}
+                      onPress={() => handleDelete(item.id)}
+                    >
+                      <Text style={styles.actionBtnText}>Delete</Text>
+                    </Pressable>
+                  </>
                 ) : (
                   <Pressable
                     accessibilityRole="button"
-                    style={styles.actionBtn}
+                    style={[styles.actionBtn, { flex: 1 }]}
                     onPress={() => onEditProperty && onEditProperty(item)}
                   >
-                    <Text style={styles.actionBtnText}>Moderate</Text>
+                    <Text style={styles.actionBtnText}>Property details →</Text>
                   </Pressable>
                 )}
               </View>
+
+              {/* Direct Communication Buttons on Property Card */}
+              {userRole === 'seller' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.cardChatBtn}
+                  onPress={async () => {
+                    if (hasAgent) {
+                      const conv = await contactAgentForTerms({
+                        property: item,
+                        sellerName: currentSession?.full_name || currentSession?.username || 'Seller',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    } else {
+                      const conv = await startOrFindConversation({
+                        property: item,
+                        userRole: 'seller',
+                        userName: currentSession?.full_name || currentSession?.username || 'Seller (Owner)',
+                        targetChannel: 'seller_buyer',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }
+                  }}
+                >
+                  <Text style={styles.cardChatBtnText}>
+                    {hasAgent ? '💬 Chat with Assigned Agent' : '💬 Chat with Buyers (Direct Inquiries)'}
+                  </Text>
+                </Pressable>
+              ) : (
+                /* For Agent: Discuss with Seller AND Discuss with Buyers */
+                <View style={styles.agentChatRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.cardChatBtn, { flex: 1 }]}
+                    onPress={async () => {
+                      const conv = await startOrFindConversation({
+                        property: item,
+                        userRole: 'agent',
+                        userName: currentSession?.full_name || currentSession?.username || 'Agent',
+                        targetChannel: 'agent_seller',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }}
+                  >
+                    <Text style={styles.cardChatBtnText}>💬 Chat with Seller</Text>
+                  </Pressable>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.cardChatBtn, styles.buyerChatBtn, { flex: 1 }]}
+                    onPress={async () => {
+                      const conv = await startOrFindConversation({
+                        property: item,
+                        userRole: 'agent',
+                        userName: currentSession?.full_name || currentSession?.username || 'Agent',
+                        targetChannel: 'agent_buyer',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }}
+                  >
+                    <Text style={[styles.cardChatBtnText, styles.buyerChatBtnText]}>
+                      💬 Chat with Buyers
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           );
         })}
@@ -424,6 +507,33 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 13,
     fontWeight: '600',
+    color: '#2A2424',
+  },
+  cardChatBtn: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#B6311E',
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: 'center',
+    backgroundColor: '#FFF5F4',
+  },
+  cardChatBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B6311E',
+  },
+  agentChatRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  buyerChatBtn: {
+    marginTop: 0,
+    borderColor: '#2A2424',
+    backgroundColor: '#F7F7F7',
+  },
+  buyerChatBtnText: {
     color: '#2A2424',
   },
   emptyContainer: {

@@ -1,6 +1,6 @@
 // Seller edit/delete rules. Same rules as the local repository
 // (src/repositories/propertyRepository.ts) and the Supabase triggers
-// (supabase/migrations/20261119120000_seller_edit_delete_rules.sql).
+// (supabase/migrations/20261119130000_seller_edit_delete_rules.sql).
 import { agentIdFromForm, parsePrice } from './propertyFormValidation.js';
 
 // Once an offer is accepted the commercial terms are frozen.

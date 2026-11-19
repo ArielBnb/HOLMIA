@@ -1,5 +1,5 @@
 -- Seller edit & delete check: paste into Supabase Dashboard > SQL Editor and click Run.
--- Requires migration 20261119120000_seller_edit_delete_rules.sql.
+-- Requires migration 20261119130000_seller_edit_delete_rules.sql.
 -- Creates a temporary second Seller and two listings owned by seller@holmia.example,
 -- runs every rule as the real "authenticated" role, then aborts on purpose:
 -- the "ERROR: TEST_RESULT ..." message IS the result and everything is rolled back.
