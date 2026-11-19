@@ -193,6 +193,63 @@ export async function startOrFindConversation({ property, userRole, userName, ta
   return conv;
 }
 
+/**
+ * Pre-listing Consultation:
+ * Allows a Seller to contact an Agent before listing to agree on terms, commission, valuation, and marketing strategy.
+ */
+export async function contactAgentForTerms({ property, sellerName }) {
+  const all = await loadConversations();
+  const propertyTitle = property?.title || 'Pre-Listing Consultation';
+  const propertyId = property?.id || `draft-${Date.now()}`;
+
+  let conv = all.find(
+    (c) =>
+      (c.propertyId === propertyId || c.propertyTitle === propertyTitle) &&
+      c.channelType === 'agent_seller'
+  );
+
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const time = `${hours}:${minutes}`;
+
+  if (!conv) {
+    conv = {
+      id: `conv-${propertyId}-agent-seller-${Date.now()}`,
+      propertyId: propertyId,
+      propertyTitle: propertyTitle,
+      hasAgent: true,
+      channelType: 'agent_seller',
+      participants: {
+        sellerId: property?.seller_id || 'user-seller-1',
+        sellerName: sellerName || 'Demo Seller',
+        agentId: 'user-agent-1',
+        agentName: 'Demo Agent',
+      },
+      messages: [
+        {
+          id: `msg-${Date.now()}-1`,
+          senderRole: 'seller',
+          senderName: sellerName || 'Demo Seller',
+          text: `Hello! I am preparing to list "${propertyTitle}". Before officially publishing, I would like to discuss representation terms, agency commission, and valuation strategy.`,
+          timestamp: time,
+        },
+        {
+          id: `msg-${Date.now()}-2`,
+          senderRole: 'agent',
+          senderName: 'Demo Agent',
+          text: `Hi! I would be delighted to assist. Our standard agency commission is 1.5% including professional photography, floor plans, and portal marketing. What asking price and timeline did you have in mind?`,
+          timestamp: time,
+        },
+      ],
+    };
+    all.unshift(conv);
+    await saveConversations(all);
+  }
+
+  return conv;
+}
+
 export async function sendMessage(conversationId, { senderRole, senderName, text }) {
   if (!text || !text.trim()) return null;
   const all = await loadConversations();

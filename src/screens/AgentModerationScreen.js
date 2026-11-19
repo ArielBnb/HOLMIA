@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { updateProperty, createProperty } from '../services/propertyService';
+import { contactAgentForTerms } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
 
 export default function AgentModerationScreen({
@@ -18,6 +19,7 @@ export default function AgentModerationScreen({
   currentSession,
   onBack,
   onSaved,
+  onOpenChat,
 }) {
   const userRole = currentSession?.role || 'seller';
 
@@ -265,6 +267,22 @@ export default function AgentModerationScreen({
                 ? '✓ Direct Seller listing: You manage offers and communicate directly with buyers.'
                 : '✓ Agent listing: An agent represents the property, moderates changes, and handles inquiries.'}
             </Text>
+
+            {/* Seller Pre-Listing Consultation Button */}
+            <Pressable
+              style={styles.consultAgentBtn}
+              onPress={async () => {
+                const conv = await contactAgentForTerms({
+                  property: { id: prop.id, title: title || 'New Property', seller_id: prop.seller_id },
+                  sellerName: currentSession?.full_name || currentSession?.username || 'Seller',
+                });
+                if (onOpenChat) onOpenChat(conv.id);
+              }}
+            >
+              <Text style={styles.consultAgentBtnText}>
+                💬 Contact Agent to Agree on Terms (Pre-Listing)
+              </Text>
+            </Pressable>
           </View>
 
           {/* Photo Boxes matching Wireframe 11 (+ Add | img | img) */}
@@ -442,6 +460,21 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: '#555',
     marginTop: 2,
+  },
+  consultAgentBtn: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#B6311E',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    backgroundColor: '#FFF5F4',
+  },
+  consultAgentBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B6311E',
   },
   photoRow: {
     flexDirection: 'row',

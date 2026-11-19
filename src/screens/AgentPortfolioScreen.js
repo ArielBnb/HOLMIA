@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { getProperties } from '../services/propertyService';
+import { contactAgentForTerms, startOrFindConversation } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
 
 export default function AgentPortfolioScreen({
@@ -249,6 +250,35 @@ export default function AgentPortfolioScreen({
                   </Pressable>
                 )}
               </View>
+
+              {/* Direct Communication Button on Property Card */}
+              <Pressable
+                accessibilityRole="button"
+                style={styles.cardChatBtn}
+                onPress={async () => {
+                  if (userRole === 'seller') {
+                    const conv = await contactAgentForTerms({
+                      property: item,
+                      sellerName: currentSession?.full_name || currentSession?.username || 'Seller',
+                    });
+                    if (onOpenChat) onOpenChat(conv.id);
+                  } else {
+                    const conv = await startOrFindConversation({
+                      property: item,
+                      userRole: 'agent',
+                      userName: currentSession?.full_name || currentSession?.username || 'Agent',
+                      targetChannel: 'agent_seller',
+                    });
+                    if (onOpenChat) onOpenChat(conv.id);
+                  }
+                }}
+              >
+                <Text style={styles.cardChatBtnText}>
+                  {userRole === 'seller'
+                    ? (hasAgent ? '💬 Chat with Assigned Agent' : '💬 Contact Agent (Agree on Terms)')
+                    : '💬 Chat with Seller (Owner)'}
+                </Text>
+              </Pressable>
             </View>
           );
         })}
@@ -425,6 +455,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#2A2424',
+  },
+  cardChatBtn: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#B6311E',
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: 'center',
+    backgroundColor: '#FFF5F4',
+  },
+  cardChatBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B6311E',
   },
   emptyContainer: {
     padding: 40,

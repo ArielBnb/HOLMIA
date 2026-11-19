@@ -68,6 +68,7 @@ function MainHome({ profile }) {
             currentSession={profile}
             onBack={() => setActiveTab('listings')}
             onSaved={() => setActiveTab('listings')}
+            onOpenChat={handleOpenChat}
           />
         )}
 

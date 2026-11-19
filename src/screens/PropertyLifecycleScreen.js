@@ -371,6 +371,24 @@ export default function PropertyLifecycleScreen({ currentSession, onBack, onOpen
                       </>
                     )}
                   </View>
+
+                  {/* Direct Chat with Seller regarding this Property */}
+                  <Pressable
+                    style={styles.discussStatusBtn}
+                    onPress={async () => {
+                      const conv = await startOrFindConversation({
+                        property: selectedProp,
+                        userRole: 'agent',
+                        userName: currentSession?.full_name || 'Agent',
+                        targetChannel: 'agent_seller',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }}
+                  >
+                    <Text style={styles.discussStatusBtnText}>
+                      💬 Discuss Property & Status with Seller
+                    </Text>
+                  </Pressable>
                 </View>
               ) : (
                 <View style={styles.terminalBox}>
@@ -653,6 +671,20 @@ const styles = StyleSheet.create({
   actionBtnRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  discussStatusBtn: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#B6311E',
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: 'center',
+    backgroundColor: '#FFF5F4',
+  },
+  discussStatusBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B6311E',
   },
   terracottaBtn: {
     flex: 1,
