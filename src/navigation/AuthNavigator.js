@@ -16,6 +16,7 @@ import AgentModerationScreen from '../screens/AgentModerationScreen';
 import PropertyLifecycleScreen from '../screens/PropertyLifecycleScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import SellerPropertyFormScreen from '../screens/SellerPropertyFormScreen';
+import OffersReceivedScreen from '../screens/OffersReceivedScreen';
 import { authStyles as s } from '../styles/authTheme';
 
 function MainHome({ profile }) {
@@ -46,6 +47,8 @@ function MainHome({ profile }) {
     { id: 'lifecycle', label: 'Lifecycle' },
     // Seller-only: create, edit and delete own listings (ownership + Under Offer locks).
     ...(profile.role === 'seller' ? [{ id: 'sell', label: 'Sell' }] : []),
+    // Seller/Agent: received offers, accept or reject (transactional, Supabase).
+    ...(['seller', 'agent'].includes(profile.role) ? [{ id: 'offers', label: 'Offers' }] : []),
     { id: 'messages', label: 'Messages' },
     { id: 'profile', label: 'Profile' },
   ];
@@ -84,6 +87,8 @@ function MainHome({ profile }) {
         )}
 
         {activeTab === 'sell' && profile.role === 'seller' && <SellerPropertyFormScreen />}
+
+        {activeTab === 'offers' && <OffersReceivedScreen currentSession={profile} />}
 
         {/* Communication System: Agent-Seller, Seller-Buyer (direct), Agent-Buyer */}
         {activeTab === 'messages' && (
