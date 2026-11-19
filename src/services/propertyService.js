@@ -166,6 +166,15 @@ export async function getProperties({ activeOnly = true, limit = 50 } = {}) {
   return [...memoryProperties];
 }
 
+// RLS returns only the signed-in Seller's own rows, drafts included.
+export async function getSellerProperties(sellerId, { limit = 20 } = {}) {
+  const { data, error } = await getSupabase().from('properties').select(fields)
+    .eq('seller_id', sellerId).order('created_at', { ascending: false })
+    .limit(Math.min(100, Math.max(1, limit)));
+  if (error) throw error;
+  return data;
+}
+
 export async function createProperty(property) {
   try {
     const sb = getSupabase();
@@ -186,6 +195,21 @@ export async function createProperty(property) {
   };
   memoryProperties.unshift(localNew);
   return localNew;
+}
+
+// RLS hides other Sellers' rows, so "0 rows" means not found or not yours.
+export async function updateOwnProperty(id, changes) {
+  const { data, error } = await getSupabase().from('properties').update(changes).eq('id', id).select(fields);
+  if (error) throw error;
+  if (!data.length) throw new Error('Listing not found, or you are not its owner.');
+  return data[0];
+}
+
+export async function deleteOwnProperty(id) {
+  const { data, error } = await getSupabase().from('properties').delete().eq('id', id).select('id');
+  if (error) throw error;
+  if (!data.length) throw new Error('Listing not found, or you are not its owner.');
+  return data[0].id;
 }
 
 export async function updateProperty(id, changes) {

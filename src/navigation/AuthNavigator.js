@@ -17,6 +17,8 @@ import PropertyLifecycleScreen from '../screens/PropertyLifecycleScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import AgentReviewScreen from '../screens/AgentReviewScreen';
 import AgentStatsScreen from '../screens/AgentStatsScreen';
+import SellerPropertyFormScreen from '../screens/SellerPropertyFormScreen';
+import OffersReceivedScreen from '../screens/OffersReceivedScreen';
 import { authStyles as s } from '../styles/authTheme';
 
 function MainHome({ profile }) {
@@ -56,6 +58,8 @@ function MainHome({ profile }) {
     { id: 'properties', label: 'Properties' },
     { id: 'review', label: 'Review' },
     { id: 'enquiries', label: 'Enquiries' },
+    // Received offers on assigned listings: accept / reject (transactional, Supabase).
+    { id: 'offers', label: 'Offers' },
     { id: 'profile', label: 'Profile' },
   ];
 
@@ -63,6 +67,10 @@ function MainHome({ profile }) {
     { id: 'listings', label: 'My listings' },
     { id: 'add', label: 'Add' },
     { id: 'lifecycle', label: 'Offers' },
+    // Create / edit / delete own listings with ownership and Under Offer locks.
+    { id: 'sell', label: 'Sell' },
+    // Received offers on own listings: accept / reject (transactional, Supabase).
+    { id: 'received', label: 'Decide' },
     { id: 'messages', label: 'Messages' },
     { id: 'profile', label: 'Profile' },
   ];
@@ -128,6 +136,8 @@ function MainHome({ profile }) {
                   />
                 )}
 
+                {activeTab === 'offers' && <OffersReceivedScreen currentSession={profile} />}
+
                 {/* Wireframe 17: Enquiries & Supabase Realtime Communication */}
                 {activeTab === 'enquiries' && (
                   <MessagesScreen
@@ -171,6 +181,10 @@ function MainHome({ profile }) {
                     onOpenChat={handleOpenChat}
                   />
                 )}
+
+                {activeTab === 'sell' && userRole === 'seller' && <SellerPropertyFormScreen />}
+
+                {activeTab === 'received' && userRole === 'seller' && <OffersReceivedScreen currentSession={profile} />}
 
                 {/* Messages Screen */}
                 {activeTab === 'messages' && (
