@@ -1,6 +1,7 @@
 // Buyer: send an enquiry about a published listing and see the stored reply
 // from the Seller or the assigned Agent, with a Pending / Handled indicator.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { randomUUID } from 'expo-crypto';
 import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getProperties } from '../services/propertyService';
 import { getMyEnquiries, sendEnquiry } from '../services/enquiryService';
@@ -20,6 +21,8 @@ export default function BuyerEnquiriesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const inFlight = useRef(false);
+  const request = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -45,15 +48,22 @@ export default function BuyerEnquiriesScreen() {
   };
 
   const submit = async () => {
+    if (inFlight.current || !message.trim()) return;
     if (!propertyId) {
       setError('Choose a listing first.');
       return;
     }
+    inFlight.current = true;
     setSending(true);
     setError('');
     setNotice('');
     try {
-      await sendEnquiry(propertyId, message);
+      const question = message.trim();
+      if (request.current?.propertyId !== propertyId || request.current.message !== question) {
+        request.current = { id: randomUUID(), propertyId, message: question };
+      }
+      await sendEnquiry(propertyId, question, request.current.id);
+      request.current = null;
       setMessage('');
       setPropertyId('');
       setNotice('Enquiry sent. You will see the reply here.');
@@ -62,6 +72,7 @@ export default function BuyerEnquiriesScreen() {
       setError(failure.message);
     } finally {
       setSending(false);
+      inFlight.current = false;
     }
   };
 
