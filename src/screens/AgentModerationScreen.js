@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { updateProperty, createProperty } from '../services/propertyService';
+import { contactAgentForTerms } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
 
 export default function AgentModerationScreen({
@@ -18,8 +19,36 @@ export default function AgentModerationScreen({
   currentSession,
   onBack,
   onSaved,
+  onOpenChat,
 }) {
-  const userRole = currentSession?.role || 'seller';
+  const userRole = currentSession?.role || 'agent';
+
+  // Agent cannot create properties (Seller feature only)
+  if (userRole === 'agent' && !initialProperty) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.headerRow}>
+            {onBack && (
+              <Pressable onPress={onBack} style={styles.backBtn}>
+                <Text style={styles.backArrow}>←</Text>
+              </Pressable>
+            )}
+            <Text style={styles.headerTitle}>Access Restricted</Text>
+          </View>
+          <View style={styles.restrictedCard}>
+            <Text style={styles.restrictedTitle}>Agents Cannot Create Properties</Text>
+            <Text style={styles.restrictedText}>
+              In HOLMIA, property listings are submitted by Sellers as drafts. As an Estate Agent, your role is to review and moderate drafts in the "Review" tab, or manage your assigned listings in the "Properties" tab.
+            </Text>
+            <Pressable style={styles.publishBtn} onPress={onBack}>
+              <Text style={styles.publishBtnText}>Return to Managed Properties</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const defaultProperty = {
     id: null,
@@ -131,10 +160,14 @@ export default function AgentModerationScreen({
             </Pressable>
             <View>
               <Text style={styles.headerTitle}>
-                {initialProperty ? 'Edit property' : 'New property'}
+                {userRole === 'agent'
+                  ? 'Moderate property'
+                  : initialProperty
+                  ? 'Edit property'
+                  : 'New property'}
               </Text>
               <Text style={styles.headerSub}>
-                {userRole === 'seller' ? 'Seller listing' : 'Agent moderation'}
+                {userRole === 'seller' ? 'Seller listing' : 'Agent moderation review'}
               </Text>
             </View>
           </View>
@@ -227,51 +260,71 @@ export default function AgentModerationScreen({
             ))}
           </View>
 
-          {/* Representation Model: Seller is NOT forced to use an Agent! */}
-          <View style={styles.representationBox}>
-            <Text style={styles.representationTitle}>Representation Model</Text>
-            <View style={styles.twoColRow}>
-              <Pressable
-                style={[styles.togglePill, agentModel === 'none' && styles.togglePillActive]}
-                onPress={() => !isLocked && setAgentModel('none')}
-                disabled={isLocked}
-              >
-                <Text
-                  style={[
-                    styles.togglePillText,
-                    agentModel === 'none' && styles.togglePillTextActive,
-                  ]}
+          {/* Representation Model (Relevant for Seller creating/editing listing) */}
+          {userRole === 'seller' && (
+            <View style={styles.representationBox}>
+              <Text style={styles.representationTitle}>Representation Model</Text>
+              <View style={styles.twoColRow}>
+                <Pressable
+                  style={[styles.togglePill, agentModel === 'none' && styles.togglePillActive]}
+                  onPress={() => !isLocked && setAgentModel('none')}
+                  disabled={isLocked}
                 >
-                  Direct (No Agent)
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.togglePill, agentModel === 'agent' && styles.togglePillActive]}
-                onPress={() => !isLocked && setAgentModel('agent')}
-                disabled={isLocked}
-              >
-                <Text
-                  style={[
-                    styles.togglePillText,
-                    agentModel === 'agent' && styles.togglePillTextActive,
-                  ]}
+                  <Text
+                    style={[
+                      styles.togglePillText,
+                      agentModel === 'none' && styles.togglePillTextActive,
+                    ]}
+                  >
+                    Direct (No Agent)
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.togglePill, agentModel === 'agent' && styles.togglePillActive]}
+                  onPress={() => !isLocked && setAgentModel('agent')}
+                  disabled={isLocked}
                 >
-                  Assign an Agent
-                </Text>
-              </Pressable>
-            </View>
-            <Text style={styles.representationNote}>
-              {agentModel === 'none'
-                ? '✓ Direct Seller listing: You manage offers and communicate directly with buyers.'
-                : '✓ Agent listing: An agent represents the property, moderates changes, and handles inquiries.'}
-            </Text>
-          </View>
+                  <Text
+                    style={[
+                      styles.togglePillText,
+                      agentModel === 'agent' && styles.togglePillTextActive,
+                    ]}
+                  >
+                    Assign an Agent
+                  </Text>
+                </Pressable>
+              </View>
+              <Text style={styles.representationNote}>
+                {agentModel === 'none'
+                  ? '✓ Direct Seller listing: You manage offers and communicate directly with buyers.'
+                  : '✓ Agent listing: An agent represents the property, moderates changes, and handles inquiries.'}
+              </Text>
 
-          {/* Photo Boxes matching Wireframe 11 (+ Add | img | img) */}
-          <View style={styles.photoRow}>
-            <View style={[styles.photoBox, styles.addPhotoBox]}>
-              <Text style={styles.addPhotoText}>+ Add</Text>
+              {/* Seller Pre-Listing Consultation Button */}
+              <Pressable
+                style={styles.consultAgentBtn}
+                onPress={async () => {
+                  const conv = await contactAgentForTerms({
+                    property: { id: prop.id, title: title || 'New Property', seller_id: prop.seller_id },
+                    sellerName: currentSession?.full_name || currentSession?.username || 'Seller',
+                  });
+                  if (onOpenChat) onOpenChat(conv.id);
+                }}
+              >
+                <Text style={styles.consultAgentBtnText}>
+                  💬 Contact Agent to Agree on Terms (Pre-Listing)
+                </Text>
+              </Pressable>
             </View>
+          )}
+
+          {/* Photo Boxes matching Wireframe 11 */}
+          <View style={styles.photoRow}>
+            {userRole === 'seller' && (
+              <View style={[styles.photoBox, styles.addPhotoBox]}>
+                <Text style={styles.addPhotoText}>+ Add</Text>
+              </View>
+            )}
             <View style={styles.photoBox}>
               <Text style={styles.photoText}>img</Text>
             </View>
@@ -293,25 +346,47 @@ export default function AgentModerationScreen({
             </Text>
           ) : null}
 
-          {/* Bottom Action Bar: Save draft | Publish matching Wireframe 11 */}
-          <View style={styles.bottomActionBar}>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.saveDraftBtn}
-              onPress={handleSaveDraft}
-              disabled={isLocked}
-            >
-              <Text style={styles.saveDraftBtnText}>Save draft</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              style={[styles.publishBtn, isLocked && styles.btnDisabled]}
-              onPress={handlePublish}
-              disabled={isLocked}
-            >
-              <Text style={styles.publishBtnText}>Publish</Text>
-            </Pressable>
-          </View>
+          {/* Bottom Action Bar */}
+          {userRole === 'agent' ? (
+            <View style={styles.bottomActionBar}>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.saveDraftBtn}
+                onPress={handleSaveDraft}
+                disabled={isLocked}
+              >
+                <Text style={styles.saveDraftBtnText}>Save changes</Text>
+              </Pressable>
+              {status === 'draft' && (
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.publishBtn}
+                  onPress={handlePublish}
+                >
+                  <Text style={styles.publishBtnText}>Approve & Publish</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : (
+            <View style={styles.bottomActionBar}>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.saveDraftBtn}
+                onPress={handleSaveDraft}
+                disabled={isLocked}
+              >
+                <Text style={styles.saveDraftBtnText}>Save draft</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                style={[styles.publishBtn, isLocked && styles.btnDisabled]}
+                onPress={handlePublish}
+                disabled={isLocked}
+              >
+                <Text style={styles.publishBtnText}>Publish</Text>
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -443,6 +518,21 @@ const styles = StyleSheet.create({
     color: '#555',
     marginTop: 2,
   },
+  consultAgentBtn: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#B6311E',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    backgroundColor: '#FFF5F4',
+  },
+  consultAgentBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B6311E',
+  },
   photoRow: {
     flexDirection: 'row',
     gap: 10,
@@ -521,5 +611,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  restrictedCard: {
+    backgroundColor: '#FAEDE9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    padding: 20,
+    marginTop: 20,
+  },
+  restrictedTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2A2424',
+    marginBottom: 8,
+  },
+  restrictedText: {
+    fontSize: 13,
+    color: '#555555',
+    lineHeight: 18,
+    marginBottom: 20,
   },
 });

@@ -11,9 +11,15 @@ import { updateProperty } from '../services/propertyService';
 import { notifyOfferAction, startOrFindConversation } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
 
-export default function PropertyLifecycleScreen({ currentSession, onBack, onOpenChat }) {
+export default function PropertyLifecycleScreen({
+  currentSession,
+  initialProperty,
+  onEditProperty,
+  onBack,
+  onOpenChat,
+}) {
   const [activeTab, setActiveTab] = useState('lifecycle'); // 'lifecycle' | 'offers'
-  const [selectedPropId, setSelectedPropId] = useState('prop-1');
+  const [selectedPropId, setSelectedPropId] = useState(initialProperty?.id || 'prop-1');
   const [message, setMessage] = useState('');
 
   // Sample properties with full lifecycle history
@@ -371,6 +377,42 @@ export default function PropertyLifecycleScreen({ currentSession, onBack, onOpen
                       </>
                     )}
                   </View>
+
+                  {/* Secondary Row matching Wireframe 15: [ Edit details ] [ See offers ] */}
+                  <View style={[styles.actionBtnRow, { marginTop: 10 }]}>
+                    {onEditProperty && (
+                      <Pressable
+                        style={[styles.whiteBtn, { flex: 1 }]}
+                        onPress={() => onEditProperty(selectedProp)}
+                      >
+                        <Text style={styles.btnTextDark}>Edit details</Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      style={[styles.whiteBtn, { flex: 1 }]}
+                      onPress={() => setActiveTab('offers')}
+                    >
+                      <Text style={styles.btnTextDark}>See offers</Text>
+                    </Pressable>
+                  </View>
+
+                  {/* Direct Chat with Seller regarding this Property */}
+                  <Pressable
+                    style={styles.discussStatusBtn}
+                    onPress={async () => {
+                      const conv = await startOrFindConversation({
+                        property: selectedProp,
+                        userRole: 'agent',
+                        userName: currentSession?.full_name || 'Agent',
+                        targetChannel: 'agent_seller',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }}
+                  >
+                    <Text style={styles.discussStatusBtnText}>
+                      💬 Discuss Property & Status with Seller
+                    </Text>
+                  </Pressable>
                 </View>
               ) : (
                 <View style={styles.terminalBox}>
@@ -653,6 +695,20 @@ const styles = StyleSheet.create({
   actionBtnRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  discussStatusBtn: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#B6311E',
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: 'center',
+    backgroundColor: '#FFF5F4',
+  },
+  discussStatusBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B6311E',
   },
   terracottaBtn: {
     flex: 1,

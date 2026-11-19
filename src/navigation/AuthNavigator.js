@@ -15,111 +15,207 @@ import AgentPortfolioScreen from '../screens/AgentPortfolioScreen';
 import AgentModerationScreen from '../screens/AgentModerationScreen';
 import PropertyLifecycleScreen from '../screens/PropertyLifecycleScreen';
 import MessagesScreen from '../screens/MessagesScreen';
+import AgentReviewScreen from '../screens/AgentReviewScreen';
+import AgentStatsScreen from '../screens/AgentStatsScreen';
 import { authStyles as s } from '../styles/authTheme';
 
 function MainHome({ profile }) {
   const { signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState('listings');
+  const userRole = profile?.role || 'agent';
+
+  // Role-specific initial tab & navigation
+  const [activeTab, setActiveTab] = useState(userRole === 'agent' ? 'properties' : 'listings');
   const [editingProperty, setEditingProperty] = useState(null);
+  const [viewingDetailsProperty, setViewingDetailsProperty] = useState(null);
   const [chatConvId, setChatConvId] = useState(null);
 
   const handleEditProperty = (prop) => {
     setEditingProperty(prop);
-    setActiveTab('add');
+  };
+
+  const handleViewDetails = (prop) => {
+    setViewingDetailsProperty(prop);
   };
 
   const handleAddProperty = () => {
+    // Only available for seller
     setEditingProperty(null);
     setActiveTab('add');
   };
 
   const handleOpenChat = (conversationId) => {
     setChatConvId(conversationId);
-    setActiveTab('messages');
+    setActiveTab(userRole === 'agent' ? 'enquiries' : 'messages');
   };
 
-  // Wireframe Navigation + Messages
-  const tabs = [
+  // Wireframe Tabs strictly mapped by Role:
+  // - Agent: Wireframes 13-17: Stats | Properties | Review | Enquiries | Profile
+  // - Seller: Wireframes 10-12: My listings | Add | Offers | Messages | Profile
+  const agentTabs = [
+    { id: 'stats', label: 'Stats' },
+    { id: 'properties', label: 'Properties' },
+    { id: 'review', label: 'Review' },
+    { id: 'enquiries', label: 'Enquiries' },
+    { id: 'profile', label: 'Profile' },
+  ];
+
+  const sellerTabs = [
     { id: 'listings', label: 'My listings' },
     { id: 'add', label: 'Add' },
-    { id: 'lifecycle', label: 'Lifecycle' },
+    { id: 'lifecycle', label: 'Offers' },
     { id: 'messages', label: 'Messages' },
     { id: 'profile', label: 'Profile' },
   ];
+
+  const buyerTabs = [
+    { id: 'listings', label: 'Catalogue' },
+    { id: 'messages', label: 'Messages' },
+    { id: 'profile', label: 'Profile' },
+  ];
+
+  const tabs = userRole === 'agent' ? agentTabs : userRole === 'seller' ? sellerTabs : buyerTabs;
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Screen Content */}
       <View style={styles.content}>
-        {/* Wireframe 10: My listings */}
-        {activeTab === 'listings' && (
-          <AgentPortfolioScreen
-            currentSession={profile}
-            onEditProperty={handleEditProperty}
-            onAddProperty={handleAddProperty}
-            onOpenChat={handleOpenChat}
-          />
-        )}
-
-        {/* Wireframe 11: Add / Edit Property */}
-        {activeTab === 'add' && (
+        {/* Detail/Moderation overlay for Agent/Seller */}
+        {editingProperty ? (
           <AgentModerationScreen
             property={editingProperty}
             currentSession={profile}
-            onBack={() => setActiveTab('listings')}
-            onSaved={() => setActiveTab('listings')}
-          />
-        )}
-
-        {/* Wireframe 12: Offers & Property Lifecycle */}
-        {activeTab === 'lifecycle' && (
-          <PropertyLifecycleScreen
-            currentSession={profile}
-            onBack={() => setActiveTab('listings')}
+            onBack={() => setEditingProperty(null)}
+            onSaved={() => setEditingProperty(null)}
             onOpenChat={handleOpenChat}
           />
-        )}
-
-        {/* Communication System: Agent-Seller, Seller-Buyer (direct), Agent-Buyer */}
-        {activeTab === 'messages' && (
-          <MessagesScreen
+        ) : viewingDetailsProperty ? (
+          /* Wireframe 15: Managed property details */
+          <PropertyLifecycleScreen
             currentSession={profile}
-            initialConversationId={chatConvId}
-            onBackToNav={() => setActiveTab('listings')}
+            initialProperty={viewingDetailsProperty}
+            onEditProperty={(prop) => {
+              setViewingDetailsProperty(null);
+              setEditingProperty(prop);
+            }}
+            onBack={() => setViewingDetailsProperty(null)}
+            onOpenChat={handleOpenChat}
           />
-        )}
+        ) : (
+          <>
+            {/* === AGENT WORKSPACE (Screens 13-17) === */}
+            {userRole === 'agent' && (
+              <>
+                {/* Wireframe 13: Dashboard KPI Stats */}
+                {activeTab === 'stats' && (
+                  <AgentStatsScreen currentSession={profile} />
+                )}
 
-        {/* Profile */}
-        {activeTab === 'profile' && (
-          <View style={styles.profileContainer}>
-            <Text style={styles.profileTitle}>Profile</Text>
+                {/* Wireframe 14: Managed properties */}
+                {activeTab === 'properties' && (
+                  <AgentPortfolioScreen
+                    currentSession={profile}
+                    onEditProperty={handleViewDetails}
+                    onOpenChat={handleOpenChat}
+                  />
+                )}
 
-            <View style={styles.profileCard}>
-              <Text style={styles.profileName}>
-                {profile.full_name || profile.username || 'User'}
-              </Text>
-              <Text style={styles.profileMeta}>
-                Role:{' '}
-                <Text style={{ fontWeight: '700', textTransform: 'capitalize', color: '#B6311E' }}>
-                  {profile.role || 'agent'}
-                </Text>
-              </Text>
-              {profile.email ? (
-                <Text style={styles.profileMeta}>Email: {profile.email}</Text>
-              ) : null}
-              {profile.username ? (
-                <Text style={styles.profileMeta}>Username: {profile.username}</Text>
-              ) : null}
-            </View>
+                {/* Wireframe 16: Listings to review (Approve / Reject) */}
+                {activeTab === 'review' && (
+                  <AgentReviewScreen
+                    currentSession={profile}
+                    onEditProperty={handleEditProperty}
+                    onOpenChat={handleOpenChat}
+                  />
+                )}
 
-            <Pressable
-              accessibilityRole="button"
-              style={styles.logoutBtn}
-              onPress={() => signOut().catch(() => {})}
-            >
-              <Text style={styles.logoutBtnText}>Logout</Text>
-            </Pressable>
-          </View>
+                {/* Wireframe 17: Enquiries & Supabase Realtime Communication */}
+                {activeTab === 'enquiries' && (
+                  <MessagesScreen
+                    currentSession={profile}
+                    initialConversationId={chatConvId}
+                    onBackToNav={() => setActiveTab('properties')}
+                  />
+                )}
+              </>
+            )}
+
+            {/* === SELLER / BUYER WORKSPACE === */}
+            {userRole !== 'agent' && (
+              <>
+                {/* Wireframe 10: My listings / Catalogue */}
+                {activeTab === 'listings' && (
+                  <AgentPortfolioScreen
+                    currentSession={profile}
+                    onEditProperty={handleEditProperty}
+                    onAddProperty={handleAddProperty}
+                    onOpenChat={handleOpenChat}
+                  />
+                )}
+
+                {/* Wireframe 11: Add / Edit Property (Seller only) */}
+                {activeTab === 'add' && (
+                  <AgentModerationScreen
+                    property={editingProperty}
+                    currentSession={profile}
+                    onBack={() => setActiveTab('listings')}
+                    onSaved={() => setActiveTab('listings')}
+                    onOpenChat={handleOpenChat}
+                  />
+                )}
+
+                {/* Wireframe 12: Offers & Property Lifecycle */}
+                {activeTab === 'lifecycle' && (
+                  <PropertyLifecycleScreen
+                    currentSession={profile}
+                    onBack={() => setActiveTab('listings')}
+                    onOpenChat={handleOpenChat}
+                  />
+                )}
+
+                {/* Messages Screen */}
+                {activeTab === 'messages' && (
+                  <MessagesScreen
+                    currentSession={profile}
+                    initialConversationId={chatConvId}
+                    onBackToNav={() => setActiveTab('listings')}
+                  />
+                )}
+              </>
+            )}
+
+            {/* Profile Tab (Universal) */}
+            {activeTab === 'profile' && (
+              <View style={styles.profileContainer}>
+                <Text style={styles.profileTitle}>Profile</Text>
+
+                <View style={styles.profileCard}>
+                  <Text style={styles.profileName}>
+                    {profile.full_name || profile.username || 'User'}
+                  </Text>
+                  <Text style={styles.profileMeta}>
+                    Role:{' '}
+                    <Text style={{ fontWeight: '700', textTransform: 'capitalize', color: '#B6311E' }}>
+                      {profile.role || 'agent'}
+                    </Text>
+                  </Text>
+                  {profile.email ? (
+                    <Text style={styles.profileMeta}>Email: {profile.email}</Text>
+                  ) : null}
+                  {profile.username ? (
+                    <Text style={styles.profileMeta}>Username: {profile.username}</Text>
+                  ) : null}
+                </View>
+
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.logoutBtn}
+                  onPress={() => signOut().catch(() => {})}
+                >
+                  <Text style={styles.logoutBtnText}>Logout</Text>
+                </Pressable>
+              </View>
+            )}
+          </>
         )}
       </View>
 
@@ -132,8 +228,11 @@ function MainHome({ profile }) {
               key={tab.id}
               style={styles.navItem}
               onPress={() => {
-                if (tab.id === 'add') setEditingProperty(null);
-                if (tab.id !== 'messages') setChatConvId(null);
+                setEditingProperty(null);
+                setViewingDetailsProperty(null);
+                if (tab.id !== 'messages' && tab.id !== 'enquiries') {
+                  setChatConvId(null);
+                }
                 setActiveTab(tab.id);
               }}
             >
