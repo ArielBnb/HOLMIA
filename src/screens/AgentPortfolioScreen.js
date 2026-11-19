@@ -24,11 +24,19 @@ export default function AgentPortfolioScreen({
   const [filter, setFilter] = useState('all');
 
   const loadPortfolio = useCallback(async () => {
+    const filterByRole = (list) => {
+      // In Agent mode: properties without agents (Direct Seller listings) MUST NOT appear in feed
+      if (userRole === 'agent') {
+        return list.filter((p) => p.agent_id !== null && p.agent_id !== undefined);
+      }
+      return list;
+    };
+
     try {
       const remote = await getProperties({ activeOnly: false });
       if (remote && remote.length > 0) {
         setProperties(
-          remote.map((p) => ({
+          filterByRole(remote).map((p) => ({
             ...p,
             offersCount:
               p.offersCount ||
@@ -103,8 +111,8 @@ export default function AgentPortfolioScreen({
         offersCount: 1,
       },
     ];
-    setProperties(sample);
-  }, []);
+    setProperties(filterByRole(sample));
+  }, [userRole]);
 
   useEffect(() => {
     loadPortfolio();
@@ -251,34 +259,71 @@ export default function AgentPortfolioScreen({
                 )}
               </View>
 
-              {/* Direct Communication Button on Property Card */}
-              <Pressable
-                accessibilityRole="button"
-                style={styles.cardChatBtn}
-                onPress={async () => {
-                  if (userRole === 'seller') {
-                    const conv = await contactAgentForTerms({
-                      property: item,
-                      sellerName: currentSession?.full_name || currentSession?.username || 'Seller',
-                    });
-                    if (onOpenChat) onOpenChat(conv.id);
-                  } else {
-                    const conv = await startOrFindConversation({
-                      property: item,
-                      userRole: 'agent',
-                      userName: currentSession?.full_name || currentSession?.username || 'Agent',
-                      targetChannel: 'agent_seller',
-                    });
-                    if (onOpenChat) onOpenChat(conv.id);
-                  }
-                }}
-              >
-                <Text style={styles.cardChatBtnText}>
-                  {userRole === 'seller'
-                    ? (hasAgent ? '💬 Chat with Assigned Agent' : '💬 Contact Agent (Agree on Terms)')
-                    : '💬 Chat with Seller (Owner)'}
-                </Text>
-              </Pressable>
+              {/* Direct Communication Buttons on Property Card */}
+              {userRole === 'seller' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.cardChatBtn}
+                  onPress={async () => {
+                    if (hasAgent) {
+                      const conv = await contactAgentForTerms({
+                        property: item,
+                        sellerName: currentSession?.full_name || currentSession?.username || 'Seller',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    } else {
+                      const conv = await startOrFindConversation({
+                        property: item,
+                        userRole: 'seller',
+                        userName: currentSession?.full_name || currentSession?.username || 'Seller (Owner)',
+                        targetChannel: 'seller_buyer',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }
+                  }}
+                >
+                  <Text style={styles.cardChatBtnText}>
+                    {hasAgent ? '💬 Chat with Assigned Agent' : '💬 Chat with Buyers (Direct Inquiries)'}
+                  </Text>
+                </Pressable>
+              ) : (
+                /* For Agent: Discuss with Seller AND Discuss with Buyers */
+                <View style={styles.agentChatRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.cardChatBtn, { flex: 1 }]}
+                    onPress={async () => {
+                      const conv = await startOrFindConversation({
+                        property: item,
+                        userRole: 'agent',
+                        userName: currentSession?.full_name || currentSession?.username || 'Agent',
+                        targetChannel: 'agent_seller',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }}
+                  >
+                    <Text style={styles.cardChatBtnText}>💬 Chat with Seller</Text>
+                  </Pressable>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.cardChatBtn, styles.buyerChatBtn, { flex: 1 }]}
+                    onPress={async () => {
+                      const conv = await startOrFindConversation({
+                        property: item,
+                        userRole: 'agent',
+                        userName: currentSession?.full_name || currentSession?.username || 'Agent',
+                        targetChannel: 'agent_buyer',
+                      });
+                      if (onOpenChat) onOpenChat(conv.id);
+                    }}
+                  >
+                    <Text style={[styles.cardChatBtnText, styles.buyerChatBtnText]}>
+                      💬 Chat with Buyers
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           );
         })}
@@ -469,6 +514,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#B6311E',
+  },
+  agentChatRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  buyerChatBtn: {
+    marginTop: 0,
+    borderColor: '#2A2424',
+    backgroundColor: '#F7F7F7',
+  },
+  buyerChatBtnText: {
+    color: '#2A2424',
   },
   emptyContainer: {
     padding: 40,
