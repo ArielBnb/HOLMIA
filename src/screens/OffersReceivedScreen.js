@@ -17,6 +17,7 @@ import { acceptOffer, getOffersReceived, rejectOffer } from '../services/offerSe
 import { canDecide, groupOffersByProperty } from '../services/offerRules';
 import { statusLabel } from '../services/propertyEditRules';
 import { colors } from '../styles/theme';
+import EnquiriesReceivedScreen from './EnquiriesReceivedScreen';
 
 const border = '#DBE1DC';
 const danger = '#B3261E';
@@ -35,6 +36,7 @@ function Badge({ text, bg, fg }) {
 
 export default function OffersReceivedScreen({ currentSession }) {
   const role = currentSession?.role;
+  const [section, setSection] = useState('offers'); // 'offers' | 'enquiries'
   const [groups, setGroups] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -105,7 +107,7 @@ export default function OffersReceivedScreen({ currentSession }) {
       >
         <View style={styles.headerRow}>
           <View style={styles.flex}>
-            <Text style={styles.heading}>Offers received</Text>
+            <Text style={styles.heading}>Received</Text>
             <Text style={styles.meta}>
               {role === 'seller' ? 'Offers on your listings.' : 'Offers on the listings assigned to you.'} Accepting one offer rejects the other pending offers and moves the listing to Under Offer.
             </Text>
@@ -115,6 +117,23 @@ export default function OffersReceivedScreen({ currentSession }) {
           </Pressable>
         </View>
 
+        <View style={styles.segment}>
+          {[{ id: 'offers', label: 'Offers' }, { id: 'enquiries', label: 'Enquiries' }].map((tab) => (
+            <Pressable
+              key={tab.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: section === tab.id }}
+              style={[styles.segmentItem, section === tab.id && styles.segmentItemActive]}
+              onPress={() => setSection(tab.id)}
+            >
+              <Text style={[styles.segmentText, section === tab.id && styles.segmentTextActive]}>{tab.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {section === 'enquiries' && <EnquiriesReceivedScreen role={role} />}
+
+        {section === 'offers' && (<>
         {notice ? <Text style={styles.success} accessibilityRole="alert">{notice}</Text> : null}
         {error ? <Text style={styles.errorBox} accessibilityRole="alert">{error}</Text> : null}
         {groups === null && <ActivityIndicator color={colors.primary} />}
@@ -184,6 +203,7 @@ export default function OffersReceivedScreen({ currentSession }) {
             })}
           </View>
         ))}
+        </>)}
       </ScrollView>
     </SafeAreaView>
   );
@@ -219,4 +239,9 @@ const styles = StyleSheet.create({
   dangerFill: { flex: 1, backgroundColor: danger, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   confirm: { backgroundColor: '#F4F7F5', borderRadius: 10, padding: 10, gap: 8 },
   confirmText: { color: '#1B1B1B', fontWeight: '600' },
+  segment: { flexDirection: 'row', backgroundColor: '#E7EFEA', borderRadius: 12, padding: 4, gap: 4 },
+  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
+  segmentItemActive: { backgroundColor: '#FFFFFF' },
+  segmentText: { color: colors.secondary, fontWeight: '600' },
+  segmentTextActive: { color: colors.primary, fontWeight: '700' },
 });

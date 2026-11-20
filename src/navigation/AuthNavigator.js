@@ -19,6 +19,8 @@ import AgentReviewScreen from '../screens/AgentReviewScreen';
 import AgentStatsScreen from '../screens/AgentStatsScreen';
 import SellerPropertyFormScreen from '../screens/SellerPropertyFormScreen';
 import OffersReceivedScreen from '../screens/OffersReceivedScreen';
+import BuyerEnquiriesScreen from '../screens/BuyerEnquiriesScreen';
+import BuyerNavigator from './BuyerNavigator';
 import { authStyles as s } from '../styles/authTheme';
 
 function MainHome({ profile }) {
@@ -58,8 +60,8 @@ function MainHome({ profile }) {
     { id: 'properties', label: 'Properties' },
     { id: 'review', label: 'Review' },
     { id: 'enquiries', label: 'Enquiries' },
-    // Received offers on assigned listings: accept / reject (transactional, Supabase).
-    { id: 'offers', label: 'Offers' },
+    // Received offers (accept / reject) and enquiries (reply) on assigned listings.
+    { id: 'offers', label: 'Received' },
     { id: 'profile', label: 'Profile' },
   ];
 
@@ -69,14 +71,16 @@ function MainHome({ profile }) {
     { id: 'lifecycle', label: 'Offers' },
     // Create / edit / delete own listings with ownership and Under Offer locks.
     { id: 'sell', label: 'Sell' },
-    // Received offers on own listings: accept / reject (transactional, Supabase).
-    { id: 'received', label: 'Decide' },
+    // Received offers (accept / reject) and enquiries (reply) on own listings.
+    { id: 'received', label: 'Received' },
     { id: 'messages', label: 'Messages' },
     { id: 'profile', label: 'Profile' },
   ];
 
   const buyerTabs = [
     { id: 'listings', label: 'Catalogue' },
+    // Buyer enquiries and the stored replies from Seller / Agent.
+    { id: 'enquiries', label: 'Enquiries' },
     { id: 'messages', label: 'Messages' },
     { id: 'profile', label: 'Profile' },
   ];
@@ -153,8 +157,15 @@ function MainHome({ profile }) {
             {/* === SELLER / BUYER WORKSPACE === */}
             {userRole !== 'agent' && (
               <>
-                {/* Wireframe 10: My listings / Catalogue */}
-                {activeTab === 'listings' && (
+                {/* Wireframe 10: Seller listings / Buyer catalogue */}
+                {activeTab === 'listings' && userRole === 'buyer' && (
+                  <BuyerNavigator
+                    onProfile={() => setActiveTab('profile')}
+                    onEnquiries={() => setActiveTab('enquiries')}
+                    onMessages={() => setActiveTab('messages')}
+                  />
+                )}
+                {activeTab === 'listings' && userRole === 'seller' && (
                   <AgentPortfolioScreen
                     currentSession={profile}
                     onEditProperty={handleEditProperty}
@@ -186,6 +197,8 @@ function MainHome({ profile }) {
                 {activeTab === 'sell' && userRole === 'seller' && <SellerPropertyFormScreen />}
 
                 {activeTab === 'received' && userRole === 'seller' && <OffersReceivedScreen currentSession={profile} />}
+
+                {activeTab === 'enquiries' && userRole === 'buyer' && <BuyerEnquiriesScreen />}
 
                 {/* Messages Screen */}
                 {activeTab === 'messages' && (
@@ -235,7 +248,7 @@ function MainHome({ profile }) {
       </View>
 
       {/* Figma Bottom Navigation Bar (pure white #FFFFFF) */}
-      <View style={styles.bottomNav}>
+      {!(userRole === 'buyer' && activeTab === 'listings') && <View style={styles.bottomNav}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -257,7 +270,7 @@ function MainHome({ profile }) {
             </Pressable>
           );
         })}
-      </View>
+      </View>}
     </SafeAreaView>
   );
 }
