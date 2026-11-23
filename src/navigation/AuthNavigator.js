@@ -126,7 +126,8 @@ function MainHome({ profile }) {
                 {activeTab === 'properties' && (
                   <AgentPortfolioScreen
                     currentSession={profile}
-                    onEditProperty={handleViewDetails}
+                    onEditProperty={handleEditProperty}
+                    onViewDetails={handleViewDetails}
                     onOpenChat={handleOpenChat}
                   />
                 )}

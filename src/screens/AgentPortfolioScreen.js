@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   Pressable,
   RefreshControl,
@@ -15,103 +16,48 @@ import { authColors as colors } from '../styles/authTheme';
 export default function AgentPortfolioScreen({
   currentSession,
   onEditProperty,
+  onViewDetails,
   onAddProperty,
   onOpenChat,
 }) {
-  const userRole = currentSession?.role || 'seller';
+  const userRole = currentSession?.role || 'agent';
   const [properties, setProperties] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadPortfolio = useCallback(async () => {
     const filterByRole = (list) => {
-      // In Agent mode: properties without agents (Direct Seller listings) MUST NOT appear in feed
+      // In Agent mode (Wireframe 14):
+      // 1. Direct Seller listings without agents MUST NOT appear in feed
+      // 2. Draft listings belong to "Review" screen (Wireframe 16) and are excluded here
       if (userRole === 'agent') {
-        return list.filter((p) => p.agent_id !== null && p.agent_id !== undefined);
+        return list.filter(
+          (p) => p.agent_id !== null && p.agent_id !== undefined && p.status !== 'draft'
+        );
       }
       return list;
     };
 
     try {
-      const remote = await getProperties({ activeOnly: false });
-      if (remote && remote.length > 0) {
+      const data = await getProperties({ activeOnly: false });
+      if (data && data.length > 0) {
         setProperties(
-          filterByRole(remote).map((p) => ({
+          filterByRole(data).map((p) => ({
             ...p,
             offersCount:
-              p.offersCount ||
-              (p.status === 'under_offer' ? 2 : p.status === 'active' ? 1 : 0),
+              p.offersCount !== undefined
+                ? p.offersCount
+                : p.status === 'under_offer'
+                ? 2
+                : p.status === 'active'
+                ? 1
+                : 0,
           }))
         );
         return;
       }
-    } catch (err) {
-      // Fallback
-    }
-
-    const sample = [
-      {
-        id: 'a0000000-0000-4000-8000-000000000001',
-        title: 'Bright Apartment in Central London',
-        description: 'Charming two-bedroom apartment with private balcony, close to tube station.',
-        price: 425000,
-        listing_type: 'sale',
-        property_type: 'Flat',
-        location: 'London, UK',
-        status: 'active',
-        agent_id: 'user-agent-1', // Represented
-        offersCount: 2,
-      },
-      {
-        id: 'a0000000-0000-4000-8000-000000000002',
-        title: 'Spacious Family House in Manchester',
-        description: 'Four-bedroom detached family home with private landscaped garden. Direct from owner.',
-        price: 580000,
-        listing_type: 'sale',
-        property_type: 'House',
-        location: 'Manchester, UK',
-        status: 'under_offer',
-        agent_id: null, // NO AGENT - Direct Seller!
-        offersCount: 3,
-      },
-      {
-        id: 'a0000000-0000-4000-8000-000000000003',
-        title: 'Furnished Student Studio in Oxford',
-        description: 'Compact fully furnished modern studio near university campus.',
-        price: 650,
-        listing_type: 'rent',
-        property_type: 'Studio',
-        location: 'Oxford, UK',
-        status: 'draft',
-        agent_id: 'user-agent-1', // Represented
-        offersCount: 0,
-      },
-      {
-        id: 'a0000000-0000-4000-8000-000000000004',
-        title: 'Riverside Apartment in Bristol',
-        description: 'Contemporary two-bedroom apartment with river views and parking.',
-        price: 1150,
-        listing_type: 'rent',
-        property_type: 'Flat',
-        location: 'Bristol, UK',
-        status: 'rented',
-        agent_id: null, // Direct Seller
-        offersCount: 4,
-      },
-      {
-        id: 'a0000000-0000-4000-8000-000000000005',
-        title: 'Industrial Converted Loft in Birmingham',
-        description: 'Open-plan warehouse conversion with exposed brickwork and mezzanine.',
-        price: 310000,
-        listing_type: 'sale',
-        property_type: 'Loft',
-        location: 'Birmingham, UK',
-        status: 'sold',
-        agent_id: 'user-agent-1',
-        offersCount: 1,
-      },
-    ];
-    setProperties(filterByRole(sample));
+    } catch (err) {}
   }, [userRole]);
 
   useEffect(() => {
@@ -128,15 +74,35 @@ export default function AgentPortfolioScreen({
     setProperties((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const filtered = filter === 'all' ? properties : properties.filter((p) => p.status === filter);
-
   const statusLabel = {
     draft: 'Draft',
     active: 'Active',
-    under_offer: 'Under Offer',
+    under_offer: 'Under offer',
     sold: 'Sold',
     rented: 'Rented',
   };
+
+  // Filter Pills strictly matching Wireframe 14 for Agent: [All, Active, Under offer, Sold]
+  const filterOptions =
+    userRole === 'agent'
+      ? ['all', 'active', 'under_offer', 'sold']
+      : ['all', 'active', 'draft', 'under_offer', 'sold'];
+
+  // Apply search query first, then status filter
+  const filteredBySearch = properties.filter((p) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (p.title && p.title.toLowerCase().includes(q)) ||
+      (p.location && p.location.toLowerCase().includes(q)) ||
+      (p.seller_name && p.seller_name.toLowerCase().includes(q))
+    );
+  });
+
+  const filtered =
+    filter === 'all'
+      ? filteredBySearch
+      : filteredBySearch.filter((p) => p.status === filter);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -165,20 +131,32 @@ export default function AgentPortfolioScreen({
           )}
         </View>
 
-        {/* Filter Pills */}
+        {/* Search Bar matching Wireframe 14 */}
+        <View style={styles.searchBox}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search..."
+            placeholderTextColor="#888888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            clearButtonMode="while-editing"
+          />
+        </View>
+
+        {/* Filter Pills matching Wireframe 14: (All) (Active) (Under offer) (Sold) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterRow}
         >
-          {['all', 'active', 'draft', 'under_offer', 'sold', 'rented'].map((st) => (
+          {filterOptions.map((st) => (
             <Pressable
               key={st}
               style={[styles.filterPill, filter === st && styles.filterPillActive]}
               onPress={() => setFilter(st)}
             >
               <Text style={[styles.filterPillText, filter === st && styles.filterPillTextActive]}>
-                {st === 'all' ? 'All' : statusLabel[st]}
+                {st === 'all' ? 'All' : statusLabel[st] || st}
               </Text>
             </Pressable>
           ))}
@@ -257,13 +235,24 @@ export default function AgentPortfolioScreen({
                     </Pressable>
                   </>
                 ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    style={[styles.actionBtn, { flex: 1 }]}
-                    onPress={() => onEditProperty && onEditProperty(item)}
-                  >
-                    <Text style={styles.actionBtnText}>Property details →</Text>
-                  </Pressable>
+                  <View style={styles.agentActionRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={[styles.actionBtn, { flex: 1 }]}
+                      onPress={() => onEditProperty && onEditProperty(item)}
+                    >
+                      <Text style={styles.actionBtnText}>Edit details</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={[styles.actionBtn, styles.detailsBtn, { flex: 1.2 }]}
+                      onPress={() => (onViewDetails ? onViewDetails(item) : onEditProperty(item))}
+                    >
+                      <Text style={[styles.actionBtnText, styles.detailsBtnText]}>
+                        Status & History →
+                      </Text>
+                    </Pressable>
+                  </View>
                 )}
               </View>
 
@@ -388,6 +377,19 @@ const styles = StyleSheet.create({
     color: '#2A2424',
     fontWeight: '400',
   },
+  searchBox: {
+    marginBottom: 14,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#2A2424',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#2A2424',
+    backgroundColor: '#FFFFFF',
+  },
   filterRow: {
     gap: 8,
     marginBottom: 18,
@@ -508,6 +510,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#2A2424',
+  },
+  agentActionRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  detailsBtn: {
+    backgroundColor: '#FAEDE9',
+    borderColor: '#B6311E',
+  },
+  detailsBtnText: {
+    color: '#B6311E',
   },
   cardChatBtn: {
     marginTop: 10,

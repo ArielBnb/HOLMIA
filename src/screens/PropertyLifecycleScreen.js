@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -7,7 +7,7 @@ import {
   View,
   Pressable,
 } from 'react-native';
-import { updateProperty } from '../services/propertyService';
+import { getProperties, updateProperty } from '../services/propertyService';
 import { notifyOfferAction, startOrFindConversation } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
 
@@ -19,111 +19,50 @@ export default function PropertyLifecycleScreen({
   onOpenChat,
 }) {
   const [activeTab, setActiveTab] = useState('lifecycle'); // 'lifecycle' | 'offers'
-  const [selectedPropId, setSelectedPropId] = useState(initialProperty?.id || 'prop-1');
+  const [selectedPropId, setSelectedPropId] = useState(initialProperty?.id || 'a0000000-0000-4000-8000-000000000001');
   const [message, setMessage] = useState('');
 
   // Sample properties with full lifecycle history
-  const [properties, setProperties] = useState([
-    {
-      id: 'prop-1',
-      title: 'Central London Flat',
-      listing_type: 'sale',
-      price: 425000,
-      status: 'under_offer',
-      history: [
-        {
-          id: 'h1',
-          from: 'Created',
-          to: 'Draft',
-          actor: 'Demo Seller',
-          date: '10 Nov 2026, 10:00',
-          notes: 'Listing created by seller.',
-        },
-        {
-          id: 'h2',
-          from: 'Draft',
-          to: 'Active',
-          actor: 'Demo Agent',
-          date: '12 Nov 2026, 14:30',
-          notes: 'Listing approved and activated by agent.',
-        },
-        {
-          id: 'h3',
-          from: 'Active',
-          to: 'Under Offer',
-          actor: 'System',
-          date: '16 Nov 2026, 09:15',
-          notes: 'Offer of £420,000 accepted by seller.',
-        },
-      ],
-    },
-    {
-      id: 'prop-2',
-      title: 'Oxford Student Studio',
-      listing_type: 'rent',
-      price: 650,
-      status: 'active',
-      history: [
-        {
-          id: 'h4',
-          from: 'Created',
-          to: 'Draft',
-          actor: 'Demo Seller',
-          date: '12 Nov 2026, 09:00',
-          notes: 'Rental studio draft submitted.',
-        },
-        {
-          id: 'h5',
-          from: 'Draft',
-          to: 'Active',
-          actor: 'Demo Agent',
-          date: '13 Nov 2026, 11:20',
-          notes: 'Verified and activated for student market.',
-        },
-      ],
-    },
-    {
-      id: 'prop-3',
-      title: 'Birmingham Converted Loft',
-      listing_type: 'sale',
-      price: 310000,
-      status: 'sold',
-      history: [
-        {
-          id: 'h6',
-          from: 'Created',
-          to: 'Draft',
-          actor: 'Demo Seller',
-          date: '15 Oct 2026, 11:00',
-          notes: 'Property created.',
-        },
-        {
-          id: 'h7',
-          from: 'Draft',
-          to: 'Active',
-          actor: 'Demo Agent',
-          date: '18 Oct 2026, 15:45',
-          notes: 'Published to public catalogue.',
-        },
-        {
-          id: 'h8',
-          from: 'Active',
-          to: 'Under Offer',
-          actor: 'System',
-          date: '02 Nov 2026, 10:30',
-          notes: 'Offer of £305,000 accepted.',
-        },
-        {
-          id: 'h9',
-          from: 'Under Offer',
-          to: 'Sold',
-          actor: 'Demo Agent',
-          date: '14 Nov 2026, 16:00',
-          notes: 'Conveyancing finalized, deed signed. Status is now terminal.',
-        },
-      ],
-    },
-  ]);
+  const [properties, setProperties] = useState([]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const all = await getProperties({ activeOnly: false });
+        if (all && all.length > 0) {
+          const agentOnly = all.filter(
+            (p) => p.agent_id !== null && p.agent_id !== undefined && p.status !== 'draft'
+          );
+          if (agentOnly.length > 0) {
+            setProperties(
+              agentOnly.map((p) => ({
+                ...p,
+                history:
+                  p.history && p.history.length > 0
+                    ? p.history
+                    : [
+                        {
+                          id: 'h-' + p.id,
+                          from: 'Draft',
+                          to: p.status.charAt(0).toUpperCase() + p.status.slice(1).replace('_', ' '),
+                          actor: 'Demo Agent',
+                          date: '15 Nov 2026, 10:00',
+                          notes: 'Status initialized',
+                        },
+                      ],
+              }))
+            );
+            if (initialProperty?.id) {
+              setSelectedPropId(initialProperty.id);
+            } else {
+              setSelectedPropId(agentOnly[0].id);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    load();
+  }, [initialProperty]);
 
   const [offers, setOffers] = useState([
     {
@@ -155,7 +94,17 @@ export default function PropertyLifecycleScreen({
     },
   ]);
 
-  const selectedProp = properties.find((p) => p.id === selectedPropId) || properties[0];
+  const selectedProp =
+    properties.find((p) => p.id === selectedPropId) ||
+    initialProperty ||
+    properties[0] || {
+      id: 'default',
+      title: 'Managed Property',
+      status: 'active',
+      price: 425000,
+      listing_type: 'sale',
+      history: [],
+    };
 
   const handleTransition = async (newStatus, notes) => {
     const fromStatus = selectedProp.status;
@@ -169,12 +118,12 @@ export default function PropertyLifecycleScreen({
     };
 
     setProperties((prev) =>
-      prev.map((p) =>
+      (prev || []).map((p) =>
         p.id === selectedProp.id
           ? {
               ...p,
               status: newStatus,
-              history: [...p.history, newEntry],
+              history: [...(p.history || []), newEntry],
             }
           : p
       )
@@ -287,7 +236,7 @@ export default function PropertyLifecycleScreen({
             {/* Property Selector */}
             <Text style={styles.sectionSubtitle}>Select property:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propSelectorScroll}>
-              {properties.map((p) => {
+              {(properties || []).map((p) => {
                 const isSelected = p.id === selectedProp.id;
                 return (
                   <Pressable
@@ -426,10 +375,19 @@ export default function PropertyLifecycleScreen({
             {/* Audit Trail Timeline */}
             <Text style={styles.sectionHeading}>Audit Trail & History</Text>
             <View style={styles.timelineCard}>
-              {selectedProp.history.map((entry, idx) => {
-                const isLast = idx === selectedProp.history.length - 1;
+              {(selectedProp?.history || [
+                {
+                  id: 'h-init',
+                  from: 'Created',
+                  to: (selectedProp?.status || 'Active').charAt(0).toUpperCase() + (selectedProp?.status || 'active').slice(1).replace('_', ' '),
+                  actor: 'Demo Seller',
+                  date: 'Recent',
+                  notes: 'Listing created and assigned to agent',
+                },
+              ]).map((entry, idx, arr) => {
+                const isLast = idx === arr.length - 1;
                 return (
-                  <View key={entry.id} style={styles.timelineRow}>
+                  <View key={entry.id || idx} style={styles.timelineRow}>
                     <View style={styles.timelineLeftCol}>
                       <View style={styles.timelineDot} />
                       {!isLast && <View style={styles.timelineLine} />}
@@ -460,7 +418,7 @@ export default function PropertyLifecycleScreen({
           /* Offers View matching Wireframe 12 */
           <>
             <Text style={styles.sectionSubtitle}>Received Offers & Applications:</Text>
-            {offers.map((item) => (
+            {(offers || []).map((item) => (
               <View key={item.id} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>{item.buyer_name}</Text>

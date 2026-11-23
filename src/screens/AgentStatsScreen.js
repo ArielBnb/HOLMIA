@@ -13,17 +13,18 @@ import { authColors as colors } from '../styles/authTheme';
 export default function AgentStatsScreen({ currentSession }) {
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
-    activeCount: 8,
-    avgPrice: 425000,
+    activeCount: 3,
+    avgPrice: 632000,
     listingsPerUser: [
-      { name: 'Demo Seller (London)', count: 4 },
-      { name: 'Cambridge Investments Ltd', count: 2 },
-      { name: 'Oxford Student Living', count: 2 },
+      { name: 'Demo Seller', count: 1 },
+      { name: 'Alice Henderson', count: 1 },
+      { name: 'Marcus Sterling', count: 1 },
     ],
     offersPerProperty: [
-      { title: 'Bright Apartment in Central London', count: 3 },
-      { title: 'Spacious Family House in Manchester', count: 1 },
-      { title: 'Furnished Student Studio in Oxford', count: 0 },
+      { title: 'Modern Duplex in Canary Wharf', count: 3 },
+      { title: 'Bright Apartment in Central London', count: 2 },
+      { title: 'Victorian Townhouse in Islington', count: 1 },
+      { title: 'Contemporary Studio in Shoreditch', count: 2 },
       { title: 'Industrial Converted Loft in Birmingham', count: 1 },
     ],
   });
@@ -32,15 +33,18 @@ export default function AgentStatsScreen({ currentSession }) {
     try {
       const all = await getProperties({ activeOnly: false });
       if (all && all.length > 0) {
-        // Calculate real stats
-        const activeListings = all.filter((p) => p.status === 'active');
+        // Calculate real stats strictly for the Agent's assigned portfolio
+        const agentProperties = all.filter(
+          (p) => p.agent_id !== null && p.agent_id !== undefined
+        );
+        const activeListings = agentProperties.filter((p) => p.status === 'active');
         const count = activeListings.length;
         const total = activeListings.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
         const avg = count > 0 ? Math.round(total / count) : 0;
 
-        // Group per seller
+        // Group active listings per seller (Wireframe 13: Active listings per user)
         const userMap = {};
-        all.forEach((p) => {
+        activeListings.forEach((p) => {
           const seller = p.seller_name || `User ${p.seller_id?.slice(0, 6) || '1'}`;
           userMap[seller] = (userMap[seller] || 0) + 1;
         });
@@ -49,8 +53,9 @@ export default function AgentStatsScreen({ currentSession }) {
           .sort((a, b) => b.count - a.count)
           .slice(0, 5);
 
-        // Offers per property
-        const offersList = all
+        // Offers per property (Wireframe 13: Offers per property)
+        const offersList = agentProperties
+          .filter((p) => p.status !== 'draft')
           .slice(0, 5)
           .map((p) => ({
             title: p.title,
@@ -62,7 +67,8 @@ export default function AgentStatsScreen({ currentSession }) {
                 : p.status === 'active'
                 ? 1
                 : 0,
-          }));
+          }))
+          .sort((a, b) => b.count - a.count);
 
         setStats({
           activeCount: count,
@@ -74,7 +80,7 @@ export default function AgentStatsScreen({ currentSession }) {
     } catch (e) {
       // Keep state on failure
     }
-  }, []);
+  }, [stats.listingsPerUser, stats.offersPerProperty]);
 
   useEffect(() => {
     loadStats();
