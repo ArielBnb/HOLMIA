@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,6 +8,12 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import NotificationBanner from '../components/NotificationBanner';
+import {
+  emitNotification,
+  subscribeToAppNotifications,
+  subscribeToLocalNotifications,
+} from '../services/notificationService';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import EmailConfirmationScreen from '../screens/EmailConfirmationScreen';
@@ -33,6 +39,43 @@ function MainHome({ profile }) {
   const [editingProperty, setEditingProperty] = useState(null);
   const [viewingDetailsProperty, setViewingDetailsProperty] = useState(null);
   const [chatConvId, setChatConvId] = useState(null);
+  const [activeNotification, setActiveNotification] = useState(null);
+
+  useEffect(() => {
+    const unsubRemote = subscribeToAppNotifications(profile, (notif) => {
+      setActiveNotification(notif);
+    });
+    const unsubLocal = subscribeToLocalNotifications((notif) => {
+      setActiveNotification(notif);
+    });
+    return () => {
+      unsubRemote?.();
+      unsubLocal?.();
+    };
+  }, [profile]);
+
+  const dismissNotification = useCallback(() => {
+    setActiveNotification(null);
+  }, []);
+
+  const handleNotificationPress = useCallback(
+    (notif) => {
+      setActiveNotification(null);
+      if (!notif) return;
+      setEditingProperty(null);
+      setViewingDetailsProperty(null);
+      if (notif.conversationId) {
+        setChatConvId(notif.conversationId);
+      }
+      if (notif.targetTab === 'buyer_offers' && userRole === 'buyer') {
+        setBuyerTab('Offers');
+        setActiveTab('listings');
+      } else if (notif.targetTab) {
+        setActiveTab(notif.targetTab);
+      }
+    },
+    [userRole]
+  );
 
   const handleEditProperty = (prop) => {
     setEditingProperty(prop);
@@ -84,6 +127,12 @@ function MainHome({ profile }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Live In-App Pop-up Notification Banner */}
+      <NotificationBanner
+        notification={activeNotification}
+        onPress={handleNotificationPress}
+        onDismiss={dismissNotification}
+      />
       {/* Screen Content */}
       <View style={styles.content}>
         {/* Detail/Moderation overlay for Agent/Seller */}
@@ -224,6 +273,36 @@ function MainHome({ profile }) {
                     <Text style={s.link}>{label === 'Enquiries' ? 'My enquiries' : label}</Text>
                   </Pressable>
                 ))}
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.testNotifBtn}
+                  onPress={() =>
+                    emitNotification({
+                      badge: userRole === 'buyer' ? 'OFFER' : 'ALERT',
+                      title:
+                        userRole === 'agent'
+                          ? 'New offer on Central London Flat'
+                          : userRole === 'seller'
+                          ? 'New buyer enquiry received'
+                          : 'Your offer status was updated',
+                      body:
+                        userRole === 'agent'
+                          ? 'A buyer just submitted £425,000. Tap to review.'
+                          : userRole === 'seller'
+                          ? 'A prospective buyer asked about viewing times.'
+                          : 'Tap to check your latest offer and application status.',
+                      targetTab:
+                        userRole === 'agent'
+                          ? 'offers'
+                          : userRole === 'seller'
+                          ? 'received'
+                          : 'buyer_offers',
+                    })
+                  }
+                >
+                  <Text style={styles.testNotifBtnText}>Test pop-up notification</Text>
+                </Pressable>
+
                 <Pressable
                   accessibilityRole="button"
                   style={styles.logoutBtn}
@@ -394,6 +473,21 @@ const styles = StyleSheet.create({
   },
   profileMeta: {
     fontSize: 14,
+    color: '#292424',
+  },
+  testNotifBtn: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#292424',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F6F5F0',
+    marginBottom: 12,
+  },
+  testNotifBtnText: {
+    fontSize: 15,
+    fontWeight: '400',
     color: '#292424',
   },
   logoutBtn: {
