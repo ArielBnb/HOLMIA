@@ -5,13 +5,13 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
   Pressable,
   RefreshControl,
 } from 'react-native';
 import { getProperties, updateProperty } from '../services/propertyService';
-import { authColors as colors } from '../styles/authTheme';
 
-export default function AgentReviewScreen({ currentSession, onEditProperty, onOpenChat }) {
+export default function AgentReviewScreen({ currentSession, onEditProperty }) {
   const [drafts, setDrafts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -20,13 +20,14 @@ export default function AgentReviewScreen({ currentSession, onEditProperty, onOp
     try {
       const all = await getProperties({ activeOnly: false });
       if (all && all.length > 0) {
-        // Only drafts assigned to an agent
         const pendingReview = all.filter(
           (p) => p.status === 'draft' && p.agent_id !== null && p.agent_id !== undefined
         );
         setDrafts(pendingReview);
       }
-    } catch (e) {}
+    } catch {
+      // Keep state on failure
+    }
   };
 
   useEffect(() => {
@@ -45,15 +46,17 @@ export default function AgentReviewScreen({ currentSession, onEditProperty, onOp
       if (item.id && item.id.includes('-')) {
         await updateProperty(item.id, { status: 'active' });
       }
-    } catch (e) {}
+    } catch {
+      // Handled gracefully
+    }
     setDrafts((prev) => prev.filter((p) => p.id !== item.id));
-    setFeedback(`✅ "${item.title}" approved and published live!`);
+    setFeedback(`"${item.title}" approved and published.`);
     setTimeout(() => setFeedback(''), 3000);
   };
 
   const handleReject = async (item) => {
     setDrafts((prev) => prev.filter((p) => p.id !== item.id));
-    setFeedback(`Rejected "${item.title}". Returned to seller with notes.`);
+    setFeedback(`"${item.title}" rejected and returned to seller.`);
     setTimeout(() => setFeedback(''), 3000);
   };
 
@@ -63,40 +66,55 @@ export default function AgentReviewScreen({ currentSession, onEditProperty, onOp
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Figma Header matching Wireframe 16 */}
+        {/* Figma 16 Header */}
         <Text style={styles.screenTitle}>Listings to review</Text>
-        <Text style={styles.screenSub}>
-          Moderate seller draft submissions before publishing to the live catalogue.
-        </Text>
 
-        {feedback ? <Text style={styles.feedbackBanner}>{feedback}</Text> : null}
+        {feedback ? (
+          <View style={styles.feedbackBanner}>
+            <Text style={styles.feedbackText}>{feedback}</Text>
+          </View>
+        ) : null}
 
         {drafts.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>All caught up! 🎉</Text>
-            <Text style={styles.emptySub}>No draft listings currently awaiting agent moderation.</Text>
+            <Text style={styles.emptyTitle}>All caught up</Text>
+            <Text style={styles.emptySub}>
+              No draft listings currently awaiting agent moderation.
+            </Text>
           </View>
         ) : (
           drafts.map((item) => (
             <View key={item.id} style={styles.card}>
-              {/* Photo placeholder matching Wireframe 16 */}
-              <View style={styles.imgBox}>
-                <Text style={styles.imgText}>img</Text>
-              </View>
+              {/* Image box matching Figma 16: h-[80px] rounded-[6px] rgba(182,51,30,0.1) */}
+              <Pressable
+                style={styles.imgBox}
+                onPress={() => onEditProperty && onEditProperty(item)}
+              >
+                {item.image_url ? (
+                  <Image
+                    source={{ uri: item.image_url }}
+                    style={styles.imgFill}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.imgText}>img</Text>
+                )}
+              </Pressable>
 
-              {/* Title & Draft pill */}
-              <View style={styles.cardHeader}>
-                <Text style={styles.propertyTitle}>{item.title}</Text>
-                <View style={styles.draftBadge}>
-                  <Text style={styles.draftBadgeText}>Draft</Text>
+              {/* Title + Draft Pill */}
+              <Pressable
+                style={styles.cardHeader}
+                onPress={() => onEditProperty && onEditProperty(item)}
+              >
+                <Text style={styles.propertyTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <View style={styles.draftPill}>
+                  <Text style={styles.draftPillText}>Draft</Text>
                 </View>
-              </View>
+              </Pressable>
 
-              <Text style={styles.propertyMeta}>
-                £{Number(item.price).toLocaleString('en-GB')}{item.listing_type === 'rent' ? '/mo' : ''} · {item.location} · Seller: {item.seller_name || 'Demo Seller'}
-              </Text>
-
-              {/* Actions matching Wireframe 16: Approve | Reject */}
+              {/* Actions matching Figma 16: Approve (Primary #B6331E) | Reject (Secondary) */}
               <View style={styles.actionRow}>
                 <Pressable
                   accessibilityRole="button"
@@ -113,14 +131,6 @@ export default function AgentReviewScreen({ currentSession, onEditProperty, onOp
                   <Text style={styles.rejectBtnText}>Reject</Text>
                 </Pressable>
               </View>
-
-              {/* Detail Review Option */}
-              <Pressable
-                style={styles.reviewDetailBtn}
-                onPress={() => onEditProperty && onEditProperty(item)}
-              >
-                <Text style={styles.reviewDetailText}>Inspect / Edit Details →</Text>
-              </Pressable>
             </View>
           ))
         )}
@@ -132,147 +142,130 @@ export default function AgentReviewScreen({ currentSession, onEditProperty, onOp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   content: {
-    padding: 20,
-    paddingBottom: 40,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 28,
+    gap: 12,
   },
   screenTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#2A2424',
-    marginBottom: 4,
-  },
-  screenSub: {
-    fontSize: 13,
-    color: '#666666',
-    marginBottom: 18,
+    color: '#292424',
   },
   feedbackBanner: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#008000',
-    backgroundColor: '#F0FFF0',
     borderWidth: 1,
-    borderColor: '#008000',
+    borderColor: '#292424',
+    backgroundColor: 'rgba(182, 51, 30, 0.1)',
     borderRadius: 8,
     padding: 10,
-    marginBottom: 16,
+  },
+  feedbackText: {
+    fontSize: 13,
+    color: '#292424',
     textAlign: 'center',
   },
   card: {
     borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 18,
-    backgroundColor: '#FFFFFF',
+    borderColor: '#292424',
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    backgroundColor: '#F6F5F0',
   },
   imgBox: {
-    height: 120,
-    backgroundColor: '#EED9D5',
-    borderRadius: 8,
+    height: 80,
+    backgroundColor: 'rgba(182, 51, 30, 0.1)',
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  imgFill: {
+    width: '100%',
+    height: '100%',
   },
   imgText: {
-    color: '#8A5D57',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#292424',
+    fontSize: 13,
+    fontWeight: '400',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: 8,
   },
   propertyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2A2424',
     flex: 1,
-    marginRight: 8,
-  },
-  draftBadge: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: '#FAFAFA',
-  },
-  draftBadgeText: {
-    fontSize: 10,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#2A2424',
+    color: '#292424',
   },
-  propertyMeta: {
-    fontSize: 13,
-    color: '#555555',
-    marginBottom: 14,
+  draftPill: {
+    backgroundColor: '#F6F5F0',
+    borderWidth: 1,
+    borderColor: '#292424',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  draftPillText: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#292424',
   },
   actionRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
-    marginBottom: 8,
   },
   approveBtn: {
     flex: 1,
-    backgroundColor: '#B6311E',
+    height: 52,
+    backgroundColor: '#B6331E',
     borderRadius: 8,
-    paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   approveBtnText: {
-    color: '#FFFFFF',
+    color: '#F6F5F0',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 16,
   },
   rejectBtn: {
     flex: 1,
+    height: 48,
     borderWidth: 1,
-    borderColor: '#2A2424',
+    borderColor: '#292424',
     borderRadius: 8,
-    paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    backgroundColor: '#F6F5F0',
   },
   rejectBtnText: {
-    color: '#2A2424',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  reviewDetailBtn: {
-    paddingVertical: 6,
-    alignItems: 'center',
-  },
-  reviewDetailText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
+    color: '#292424',
+    fontWeight: '400',
+    fontSize: 15,
   },
   emptyCard: {
     borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 10,
-    padding: 30,
+    borderColor: '#292424',
+    borderRadius: 8,
+    padding: 20,
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    marginTop: 20,
+    gap: 4,
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#2A2424',
-    marginBottom: 6,
+    color: '#292424',
   },
   emptySub: {
     fontSize: 13,
-    color: '#666666',
+    color: '#66605A',
     textAlign: 'center',
   },
 });
-

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -9,7 +9,23 @@ import {
 } from 'react-native';
 import { getProperties, updateProperty } from '../services/propertyService';
 import { notifyOfferAction, startOrFindConversation } from '../services/chatService';
-import { authColors as colors } from '../styles/authTheme';
+
+const STATUS_LABELS = {
+  draft: 'Draft',
+  active: 'Active',
+  under_offer: 'Under Offer',
+  sold: 'Sold',
+  rented: 'Rented',
+};
+
+function getValidTransitions(status, listingType) {
+  if (status === 'draft') return ['active'];
+  if (status === 'active') return ['under_offer', 'draft'];
+  if (status === 'under_offer') {
+    return [listingType === 'rent' ? 'rented' : 'sold', 'active'];
+  }
+  return []; // Terminal states: sold / rented
+}
 
 export default function PropertyLifecycleScreen({
   currentSession,
@@ -18,11 +34,13 @@ export default function PropertyLifecycleScreen({
   onBack,
   onOpenChat,
 }) {
-  const [activeTab, setActiveTab] = useState('lifecycle'); // 'lifecycle' | 'offers'
-  const [selectedPropId, setSelectedPropId] = useState(initialProperty?.id || 'a0000000-0000-4000-8000-000000000001');
+  const [viewMode, setViewMode] = useState('manage'); // 'manage' | 'offers'
+  const [selectedPropId, setSelectedPropId] = useState(
+    initialProperty?.id || 'a0000000-0000-4000-8000-000000000001'
+  );
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [targetStatus, setTargetStatus] = useState('');
   const [message, setMessage] = useState('');
-
-  // Sample properties with full lifecycle history
   const [properties, setProperties] = useState([]);
 
   useEffect(() => {
@@ -44,10 +62,18 @@ export default function PropertyLifecycleScreen({
                         {
                           id: 'h-' + p.id,
                           from: 'Draft',
-                          to: p.status.charAt(0).toUpperCase() + p.status.slice(1).replace('_', ' '),
+                          to: STATUS_LABELS[p.status] || p.status,
                           actor: 'Demo Agent',
-                          date: '15 Nov 2026, 10:00',
+                          date: '15 Nov 2026',
                           notes: 'Status initialized',
+                        },
+                        {
+                          id: 'h-created-' + p.id,
+                          from: '',
+                          to: 'Created',
+                          actor: 'Demo Seller',
+                          date: '12 Nov 2026',
+                          notes: 'Listing created',
                         },
                       ],
               }))
@@ -59,7 +85,9 @@ export default function PropertyLifecycleScreen({
             }
           }
         }
-      } catch (e) {}
+      } catch {
+        // Fallback handled safely below
+      }
     }
     load();
   }, [initialProperty]);
@@ -99,21 +127,41 @@ export default function PropertyLifecycleScreen({
     initialProperty ||
     properties[0] || {
       id: 'default',
-      title: 'Managed Property',
+      title: 'Property',
       status: 'active',
       price: 425000,
       listing_type: 'sale',
       history: [],
     };
 
+  const validNext = useMemo(
+    () => getValidTransitions(selectedProp.status, selectedProp.listing_type),
+    [selectedProp.status, selectedProp.listing_type]
+  );
+
+  const effectiveTarget = validNext.includes(targetStatus)
+    ? targetStatus
+    : validNext[0] || '';
+
+  const isTerminal = validNext.length === 0;
+
   const handleTransition = async (newStatus, notes) => {
+    if (!newStatus || !validNext.includes(newStatus)) {
+      setMessage('Transition not allowed for this status.');
+      return;
+    }
+
     const fromStatus = selectedProp.status;
     const newEntry = {
       id: 'h-' + Date.now(),
-      from: fromStatus.charAt(0).toUpperCase() + fromStatus.slice(1).replace('_', ' '),
-      to: newStatus.charAt(0).toUpperCase() + newStatus.slice(1).replace('_', ' '),
+      from: STATUS_LABELS[fromStatus] || fromStatus,
+      to: STATUS_LABELS[newStatus] || newStatus,
       actor: currentSession?.username || 'Demo Agent',
-      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
       notes: notes || `Status changed by agent to ${newStatus}.`,
     };
 
@@ -123,19 +171,19 @@ export default function PropertyLifecycleScreen({
           ? {
               ...p,
               status: newStatus,
-              history: [...(p.history || []), newEntry],
+              history: [newEntry, ...(p.history || [])],
             }
           : p
       )
     );
+    setDropdownOpen(false);
+    setTargetStatus('');
+    setMessage(`Status updated to ${STATUS_LABELS[newStatus] || newStatus}.`);
 
-    setMessage(`Status updated to "${newStatus.replace('_', ' ')}"! Recorded in audit trail.`);
-
-    // Persist to Supabase if UUID format
-    if (selectedProp.id.includes('-')) {
+    if (selectedProp.id && selectedProp.id.includes('-')) {
       try {
         await updateProperty(selectedProp.id, { status: newStatus });
-      } catch (e) {
+      } catch {
         // Handled gracefully
       }
     }
@@ -146,7 +194,7 @@ export default function PropertyLifecycleScreen({
     if (!target) return;
 
     setOffers((prev) =>
-      prev.map((o) => {
+      (prev || []).map((o) => {
         if (o.id === offerId) return { ...o, status: 'accepted' };
         if (o.property_id === target.property_id && o.status === 'pending') {
           return { ...o, status: 'rejected' };
@@ -155,11 +203,6 @@ export default function PropertyLifecycleScreen({
       })
     );
 
-    // Automatically transition property to Under Offer
-    setSelectedPropId(target.property_id);
-    await handleTransition('under_offer', `Offer of £${target.amount.toLocaleString('en-GB')} accepted by ${target.buyer_name}.`);
-
-    // Automatically send notification in Messages to Buyer and Seller
     try {
       await notifyOfferAction({
         propertyId: target.property_id,
@@ -169,15 +212,18 @@ export default function PropertyLifecycleScreen({
         action: 'accepted',
         agentName: currentSession?.full_name || currentSession?.username || 'Demo Agent',
       });
-    } catch (e) {}
-
-    setMessage(`Offer accepted: "${target.property_title}" transitioned to Under Offer! Notification sent in Messages.`);
+    } catch {
+      // ignore
+    }
+    setMessage(
+      `Offer accepted: "${target.property_title}" moved to Under Offer; competing offers rejected.`
+    );
   };
 
   const handleRejectOffer = async (offerId) => {
     const target = offers.find((o) => o.id === offerId);
     setOffers((prev) =>
-      prev.map((o) => (o.id === offerId ? { ...o, status: 'rejected' } : o))
+      (prev || []).map((o) => (o.id === offerId ? { ...o, status: 'rejected' } : o))
     );
     if (target) {
       try {
@@ -189,308 +235,213 @@ export default function PropertyLifecycleScreen({
           action: 'rejected',
           agentName: currentSession?.full_name || currentSession?.username || 'Demo Agent',
         });
-      } catch (e) {}
+      } catch {
+        // ignore
+      }
     }
-    setMessage('Offer rejected. Notification sent to Buyer in Messages.');
+    setMessage('Offer rejected.');
   };
 
-  const isTerminal = ['sold', 'rented'].includes(selectedProp.status);
+  const safeHistory =
+    selectedProp?.history && selectedProp.history.length > 0
+      ? selectedProp.history
+      : [
+          {
+            id: 'h-init',
+            from: 'Draft',
+            to: STATUS_LABELS[selectedProp.status] || 'Active',
+            date: '15 Nov 2026',
+          },
+          {
+            id: 'h-created',
+            from: '',
+            to: 'Created',
+            date: '12 Nov 2026',
+          },
+        ];
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header matching Figma wireframes */}
-        <View style={styles.headerRow}>
-          {onBack && (
-            <Pressable onPress={onBack} style={styles.backBtn}>
-              <Text style={styles.backArrow}>←</Text>
-            </Pressable>
-          )}
-          <Text style={styles.headerTitle}>Lifecycle & Offers</Text>
-        </View>
+        {/* Figma 15 Header: ← Property */}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            if (viewMode === 'offers') {
+              setViewMode('manage');
+            } else if (onBack) {
+              onBack();
+            }
+          }}
+        >
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            ← {viewMode === 'offers' ? 'Back to property' : selectedProp.title || 'Property'}
+          </Text>
+        </Pressable>
 
-        {/* Sub-tab toggle matching Wireframe Pills */}
-        <View style={styles.tabToggleRow}>
-          <Pressable
-            style={[styles.tabTogglePill, activeTab === 'lifecycle' && styles.tabToggleActive]}
-            onPress={() => setActiveTab('lifecycle')}
-          >
-            <Text style={[styles.tabToggleText, activeTab === 'lifecycle' && styles.tabToggleTextActive]}>
-              Status History
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.tabTogglePill, activeTab === 'offers' && styles.tabToggleActive]}
-            onPress={() => setActiveTab('offers')}
-          >
-            <Text style={[styles.tabToggleText, activeTab === 'offers' && styles.tabToggleTextActive]}>
-              Offers ({offers.filter((o) => o.status === 'pending').length} pending)
-            </Text>
-          </Pressable>
-        </View>
+        {message ? (
+          <View style={styles.feedbackBanner}>
+            <Text style={styles.feedbackText}>{message}</Text>
+          </View>
+        ) : null}
 
-        {message ? <Text style={styles.bannerText}>{message}</Text> : null}
-
-        {activeTab === 'lifecycle' ? (
+        {viewMode === 'manage' ? (
           <>
-            {/* Property Selector */}
-            <Text style={styles.sectionSubtitle}>Select property:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propSelectorScroll}>
-              {(properties || []).map((p) => {
-                const isSelected = p.id === selectedProp.id;
-                return (
-                  <Pressable
-                    key={p.id}
-                    style={[styles.propPill, isSelected && styles.propPillActive]}
-                    onPress={() => {
-                      setSelectedPropId(p.id);
-                      setMessage('');
-                    }}
-                  >
-                    <Text style={[styles.propPillText, isSelected && styles.propPillTextActive]}>
-                      {p.title}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {/* Current Status Card */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{selectedProp.title}</Text>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>
-                    {selectedProp.status.toUpperCase().replace('_', ' ')}
-                  </Text>
-                </View>
+            {/* Current status row matching Figma 15 */}
+            <View style={styles.statusRow}>
+              <Text style={styles.rowText}>Current status</Text>
+              <View style={styles.pill}>
+                <Text style={styles.pillText}>
+                  {STATUS_LABELS[selectedProp.status] || selectedProp.status}
+                </Text>
               </View>
-              <Text style={styles.propertyInfo}>
-                {selectedProp.listing_type === 'sale' ? 'Sale' : 'Rent'} · £{selectedProp.price.toLocaleString('en-GB')}{selectedProp.listing_type === 'rent' ? '/mo' : ''}
+            </View>
+
+            {/* Change status to */}
+            <Text style={styles.sectionLabel}>Change status to</Text>
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={isTerminal}
+              style={[styles.dropdownBox, isTerminal && styles.disabledBox]}
+              onPress={() => setDropdownOpen((open) => !open)}
+            >
+              <Text style={styles.dropdownText}>
+                {isTerminal
+                  ? `${STATUS_LABELS[selectedProp.status]} (Terminal state)`
+                  : `${STATUS_LABELS[effectiveTarget] || effectiveTarget}  ▾`}
               </Text>
+            </Pressable>
 
-              {/* Status Transition Actions for Agent */}
-              {!isTerminal ? (
-                <View style={styles.transitionActions}>
-                  <Text style={styles.transitionLabel}>Transition to next state:</Text>
-                  <View style={styles.actionBtnRow}>
-                    {selectedProp.status === 'draft' && (
-                      <Pressable
-                        style={styles.terracottaBtn}
-                        onPress={() => handleTransition('active', 'Activated by agent.')}
-                      >
-                        <Text style={styles.btnTextWhite}>Activate (Active)</Text>
-                      </Pressable>
-                    )}
-
-                    {selectedProp.status === 'active' && (
-                      <>
-                        <Pressable
-                          style={styles.whiteBtn}
-                          onPress={() => handleTransition('draft', 'Returned to draft by agent.')}
-                        >
-                          <Text style={styles.btnTextDark}>Revert to Draft</Text>
-                        </Pressable>
-                        <Pressable
-                          style={styles.terracottaBtn}
-                          onPress={() => handleTransition('under_offer', 'Manual offer negotiation.')}
-                        >
-                          <Text style={styles.btnTextWhite}>Under Offer</Text>
-                        </Pressable>
-                      </>
-                    )}
-
-                    {selectedProp.status === 'under_offer' && (
-                      <>
-                        <Pressable
-                          style={styles.whiteBtn}
-                          onPress={() => handleTransition('active', 'Offer collapsed, back on market.')}
-                        >
-                          <Text style={styles.btnTextDark}>Back to Active</Text>
-                        </Pressable>
-                        {selectedProp.listing_type === 'sale' ? (
-                          <Pressable
-                            style={styles.terracottaBtn}
-                            onPress={() => handleTransition('sold', 'Contracts exchanged and completed.')}
-                          >
-                            <Text style={styles.btnTextWhite}>Finalize Sale (Sold)</Text>
-                          </Pressable>
-                        ) : (
-                          <Pressable
-                            style={styles.terracottaBtn}
-                            onPress={() => handleTransition('rented', 'Tenancy agreement signed.')}
-                          >
-                            <Text style={styles.btnTextWhite}>Finalize Let (Rented)</Text>
-                          </Pressable>
-                        )}
-                      </>
-                    )}
-                  </View>
-
-                  {/* Secondary Row matching Wireframe 15: [ Edit details ] [ See offers ] */}
-                  <View style={[styles.actionBtnRow, { marginTop: 10 }]}>
-                    {onEditProperty && (
-                      <Pressable
-                        style={[styles.whiteBtn, { flex: 1 }]}
-                        onPress={() => onEditProperty(selectedProp)}
-                      >
-                        <Text style={styles.btnTextDark}>Edit details</Text>
-                      </Pressable>
-                    )}
-                    <Pressable
-                      style={[styles.whiteBtn, { flex: 1 }]}
-                      onPress={() => setActiveTab('offers')}
-                    >
-                      <Text style={styles.btnTextDark}>See offers</Text>
-                    </Pressable>
-                  </View>
-
-                  {/* Direct Chat with Seller regarding this Property */}
+            {dropdownOpen && !isTerminal && (
+              <View style={styles.dropdownMenu}>
+                {validNext.map((st) => (
                   <Pressable
-                    style={styles.discussStatusBtn}
-                    onPress={async () => {
-                      const conv = await startOrFindConversation({
-                        property: selectedProp,
-                        userRole: 'agent',
-                        userName: currentSession?.full_name || 'Agent',
-                        targetChannel: 'agent_seller',
-                      });
-                      if (onOpenChat) onOpenChat(conv.id);
+                    key={st}
+                    style={[
+                      styles.dropdownItem,
+                      st === effectiveTarget && styles.dropdownItemActive,
+                    ]}
+                    onPress={() => {
+                      setTargetStatus(st);
+                      setDropdownOpen(false);
                     }}
                   >
-                    <Text style={styles.discussStatusBtnText}>
-                      💬 Discuss Property & Status with Seller
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        st === effectiveTarget && styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      {STATUS_LABELS[st] || st}
                     </Text>
                   </Pressable>
-                </View>
-              ) : (
-                <View style={styles.terminalBox}>
-                  <Text style={styles.terminalText}>
-                    🔒 Status is terminal ({selectedProp.status.toUpperCase()}). Modifications are locked.
+                ))}
+              </View>
+            )}
+
+            {/* Primary CTA: Update status (#B6331E, h-52) */}
+            <Pressable
+              accessibilityRole="button"
+              disabled={isTerminal || !effectiveTarget}
+              style={[styles.primaryBtn, (isTerminal || !effectiveTarget) && styles.primaryBtnDisabled]}
+              onPress={() => handleTransition(effectiveTarget)}
+            >
+              <Text style={styles.primaryBtnText}>Update status</Text>
+            </Pressable>
+
+            {/* Secondary Actions Row: Edit details | See offers */}
+            <View style={styles.secondaryRow}>
+              <Pressable
+                accessibilityRole="button"
+                style={[styles.secondaryBtn, styles.editDetailsBtn]}
+                onPress={() => onEditProperty && onEditProperty(selectedProp)}
+              >
+                <Text style={styles.secondaryBtnText}>Edit details</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.secondaryBtn}
+                onPress={() => setViewMode('offers')}
+              >
+                <Text style={styles.secondaryBtnText}>See offers</Text>
+              </Pressable>
+            </View>
+
+            {/* Exact Figma 15 Note */}
+            <Text style={styles.noteText}>
+              note: only valid status changes (no Sold → Active)
+            </Text>
+
+            {/* Status history matching Figma 15 */}
+            <Text style={styles.sectionLabel}>Status history</Text>
+            <View style={styles.historyBox}>
+              {safeHistory.map((entry, idx) => (
+                <View key={entry.id || idx} style={styles.historyRow}>
+                  <Text style={styles.historyLabel} numberOfLines={1}>
+                    {entry.from ? `${entry.from} → ${entry.to}` : entry.to}
                   </Text>
+                  <Text style={styles.historyDate}>{entry.date}</Text>
                 </View>
-              )}
-            </View>
-
-            {/* Audit Trail Timeline */}
-            <Text style={styles.sectionHeading}>Audit Trail & History</Text>
-            <View style={styles.timelineCard}>
-              {(selectedProp?.history || [
-                {
-                  id: 'h-init',
-                  from: 'Created',
-                  to: (selectedProp?.status || 'Active').charAt(0).toUpperCase() + (selectedProp?.status || 'active').slice(1).replace('_', ' '),
-                  actor: 'Demo Seller',
-                  date: 'Recent',
-                  notes: 'Listing created and assigned to agent',
-                },
-              ]).map((entry, idx, arr) => {
-                const isLast = idx === arr.length - 1;
-                return (
-                  <View key={entry.id || idx} style={styles.timelineRow}>
-                    <View style={styles.timelineLeftCol}>
-                      <View style={styles.timelineDot} />
-                      {!isLast && <View style={styles.timelineLine} />}
-                    </View>
-                    <View style={styles.timelineBody}>
-                      <View style={styles.timelineHeader}>
-                        <Text style={styles.transitionText}>
-                          {entry.from} → <Text style={{ fontWeight: '700' }}>{entry.to}</Text>
-                        </Text>
-                        <Text style={styles.timelineDate}>{entry.date}</Text>
-                      </View>
-                      <Text style={styles.timelineNotes}>{entry.notes}</Text>
-                      <Text style={styles.timelineActor}>By: {entry.actor}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-
-            {/* Business Constraints summary */}
-            <View style={styles.notesContainer}>
-              <Text style={styles.noteItem}>• Sold & Rented are terminal states (irreversible).</Text>
-              <Text style={styles.noteItem}>• Price and property type are locked once Under Offer.</Text>
-              <Text style={styles.noteItem}>• Accepting an offer automatically rejects concurrent pending offers.</Text>
+              ))}
             </View>
           </>
         ) : (
-          /* Offers View matching Wireframe 12 */
+          /* Offers sub-view when tapping "See offers" */
           <>
-            <Text style={styles.sectionSubtitle}>Received Offers & Applications:</Text>
-            {(offers || []).map((item) => (
-              <View key={item.id} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>{item.buyer_name}</Text>
-                  <View style={[styles.statusBadge, item.status === 'accepted' && styles.statusBadgeActive]}>
-                    <Text style={styles.statusBadgeText}>
-                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+            <Text style={styles.sectionLabel}>Received offers &amp; applications</Text>
+            {(offers || []).map((offer) => (
+              <View key={offer.id} style={styles.offerCard}>
+                <View style={styles.statusRow}>
+                  <Text style={styles.offerBuyer}>{offer.buyer_name}</Text>
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>
+                      {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.propertyInfo}>
-                  £{item.amount.toLocaleString('en-GB')} · {item.date} · {item.property_title}
+                <Text style={styles.offerMeta}>
+                  £{Number(offer.amount).toLocaleString('en-GB')} · {offer.date} · {offer.property_title}
                 </Text>
 
-                {item.status === 'pending' ? (
-                  <View style={styles.cardActions}>
+                {offer.status === 'pending' && (
+                  <View style={styles.secondaryRow}>
                     <Pressable
-                      style={styles.terracottaBtn}
-                      onPress={() => handleAcceptOffer(item.id)}
+                      accessibilityRole="button"
+                      style={[styles.primaryBtn, { flex: 1, height: 44 }]}
+                      onPress={() => handleAcceptOffer(offer.id)}
                     >
-                      <Text style={styles.btnTextWhite}>Accept</Text>
+                      <Text style={styles.primaryBtnText}>Accept</Text>
                     </Pressable>
                     <Pressable
-                      style={styles.whiteBtn}
-                      onPress={() => handleRejectOffer(item.id)}
+                      accessibilityRole="button"
+                      style={[styles.secondaryBtn, { height: 44 }]}
+                      onPress={() => handleRejectOffer(offer.id)}
                     >
-                      <Text style={styles.btnTextDark}>Reject</Text>
+                      <Text style={styles.secondaryBtnText}>Reject</Text>
                     </Pressable>
                   </View>
-                ) : (
-                  <Text style={styles.resolvedText}>
-                    Status: <Text style={{ fontWeight: '700' }}>{item.status}</Text>
-                  </Text>
                 )}
 
-                {/* Direct Discussion Buttons for Agent */}
-                <View style={styles.offerChatRow}>
+                {onOpenChat && (
                   <Pressable
-                    style={styles.offerChatBtn}
+                    style={styles.chatLink}
                     onPress={async () => {
                       const conv = await startOrFindConversation({
-                        property: { id: item.property_id, title: item.property_title, agent_id: 'user-agent-1', buyer_name: item.buyer_name },
-                        userRole: 'agent',
-                        userName: currentSession?.full_name || 'Demo Agent',
-                        targetChannel: 'agent_buyer',
+                        propertyId: offer.property_id,
+                        propertyTitle: offer.property_title,
+                        channelType: 'agent_buyer',
+                        buyerName: offer.buyer_name,
+                        agentName: currentSession?.full_name || 'Demo Agent',
                       });
-                      if (onOpenChat) onOpenChat(conv.id);
+                      onOpenChat(conv.id);
                     }}
                   >
-                    <Text style={styles.offerChatBtnText}>💬 Discuss with Buyer</Text>
+                    <Text style={styles.chatLinkText}>Message {offer.buyer_name} →</Text>
                   </Pressable>
-                  <Pressable
-                    style={styles.offerChatBtn}
-                    onPress={async () => {
-                      const conv = await startOrFindConversation({
-                        property: { id: item.property_id, title: item.property_title, agent_id: 'user-agent-1' },
-                        userRole: 'agent',
-                        userName: currentSession?.full_name || 'Demo Agent',
-                        targetChannel: 'agent_seller',
-                      });
-                      if (onOpenChat) onOpenChat(conv.id);
-                    }}
-                  >
-                    <Text style={styles.offerChatBtnText}>💬 Discuss with Seller</Text>
-                  </Pressable>
-                </View>
+                )}
               </View>
             ))}
-
-            <View style={styles.notesContainer}>
-              <Text style={styles.noteItem}>note: accept 1 offer = others rejected + status Under Offer</Text>
-              <Text style={styles.noteItem}>note: same for rental applications (move-in date)</Text>
-            </View>
           </>
         )}
       </ScrollView>
@@ -501,316 +452,186 @@ export default function PropertyLifecycleScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  backBtn: {
-    paddingVertical: 4,
-    paddingRight: 8,
-  },
-  backArrow: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#2A2424',
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 28,
+    gap: 12,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#2A2424',
+    color: '#292424',
   },
-  tabToggleRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
-  },
-  tabTogglePill: {
-    flex: 1,
-    height: 40,
+  feedbackBanner: {
     borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tabToggleActive: {
-    backgroundColor: '#2A2424',
-  },
-  tabToggleText: {
-    fontSize: 13,
-    color: '#2A2424',
-    fontWeight: '600',
-  },
-  tabToggleTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  bannerText: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#2A2424',
+    borderColor: '#292424',
+    backgroundColor: 'rgba(182, 51, 30, 0.1)',
     borderRadius: 8,
     padding: 10,
-    marginBottom: 16,
-    fontSize: 12,
-    color: '#2A2424',
-    fontStyle: 'italic',
   },
-  sectionSubtitle: {
+  feedbackText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#555555',
-    marginBottom: 8,
+    color: '#292424',
   },
-  propSelectorScroll: {
-    gap: 8,
-    paddingBottom: 16,
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  propPill: {
+  rowText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#292424',
+  },
+  pill: {
+    backgroundColor: '#F6F5F0',
     borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 16,
+    borderColor: '#292424',
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#FFFFFF',
   },
-  propPillActive: {
-    backgroundColor: '#2A2424',
-  },
-  propPillText: {
+  pillText: {
     fontSize: 12,
-    color: '#2A2424',
-    fontWeight: '500',
+    fontWeight: '400',
+    color: '#292424',
   },
-  propPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2A2424',
-    flex: 1,
-    marginRight: 8,
-  },
-  statusBadge: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    backgroundColor: '#FFFFFF',
-  },
-  statusBadgeActive: {
-    backgroundColor: '#EBE8DF',
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    color: '#2A2424',
-    fontWeight: '700',
-  },
-  propertyInfo: {
+  sectionLabel: {
     fontSize: 13,
-    color: '#555555',
-    marginBottom: 12,
+    fontWeight: '400',
+    color: '#292424',
   },
-  transitionActions: {
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E5DFD9',
-    paddingTop: 12,
-  },
-  transitionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2A2424',
-    marginBottom: 8,
-  },
-  actionBtnRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  discussStatusBtn: {
-    marginTop: 10,
+  dropdownBox: {
+    height: 48,
     borderWidth: 1,
-    borderColor: '#B6311E',
+    borderColor: '#292424',
     borderRadius: 8,
-    paddingVertical: 9,
-    alignItems: 'center',
-    backgroundColor: '#FFF5F4',
-  },
-  discussStatusBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#B6311E',
-  },
-  terracottaBtn: {
-    flex: 1,
-    height: 42,
-    borderRadius: 8,
-    backgroundColor: '#B6311E',
+    paddingHorizontal: 16,
     justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#F6F5F0',
   },
-  btnTextWhite: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
+  disabledBox: {
+    opacity: 0.55,
   },
-  whiteBtn: {
-    flex: 1,
-    height: 42,
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  btnTextDark: {
-    color: '#2A2424',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  terminalBox: {
-    padding: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    marginTop: 8,
-  },
-  terminalText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2A2424',
-  },
-  sectionHeading: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2A2424',
-    marginBottom: 10,
-  },
-  timelineCard: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 16,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  timelineLeftCol: {
-    width: 20,
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#B6311E',
-    marginTop: 4,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: '#2A2424',
-    marginTop: 4,
-  },
-  timelineBody: {
-    flex: 1,
-    paddingBottom: 8,
-  },
-  timelineHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  transitionText: {
+  dropdownText: {
     fontSize: 14,
-    color: '#2A2424',
+    fontWeight: '400',
+    color: '#292424',
   },
-  timelineDate: {
-    fontSize: 11,
-    color: '#777777',
+  dropdownMenu: {
+    borderWidth: 1,
+    borderColor: '#292424',
+    borderRadius: 8,
+    backgroundColor: '#F6F5F0',
+    overflow: 'hidden',
   },
-  timelineNotes: {
-    fontSize: 12,
-    color: '#555555',
-    marginBottom: 2,
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  timelineActor: {
-    fontSize: 11,
-    color: '#888888',
-    fontStyle: 'italic',
+  dropdownItemActive: {
+    backgroundColor: 'rgba(182, 51, 30, 0.1)',
   },
-  cardActions: {
+  dropdownItemText: {
+    fontSize: 14,
+    color: '#292424',
+  },
+  dropdownItemTextActive: {
+    fontWeight: '700',
+  },
+  primaryBtn: {
+    height: 52,
+    backgroundColor: '#B6331E',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnDisabled: {
+    opacity: 0.45,
+  },
+  primaryBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F6F5F0',
+  },
+  secondaryRow: {
     flexDirection: 'row',
     gap: 12,
   },
-  offerChatRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: 8,
-  },
-  offerChatBtn: {
+  secondaryBtn: {
     flex: 1,
+    height: 48,
+    backgroundColor: '#F6F5F0',
     borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 6,
-    paddingVertical: 7,
+    borderColor: '#292424',
+    borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    justifyContent: 'center',
   },
-  offerChatBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#2A2424',
+  editDetailsBtn: {
+    backgroundColor: '#FDF6F6',
   },
-  resolvedText: {
-    fontSize: 13,
-    color: '#555555',
-    fontStyle: 'italic',
+  secondaryBtnText: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#292424',
   },
-  notesContainer: {
-    marginTop: 8,
-  },
-  noteItem: {
+  noteText: {
     fontSize: 12,
-    color: '#555555',
-    fontStyle: 'italic',
-    marginBottom: 4,
+    fontWeight: '400',
+    color: '#292424',
+  },
+  historyBox: {
+    borderWidth: 1,
+    borderColor: '#292424',
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    backgroundColor: '#F6F5F0',
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  historyLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#292424',
+    marginRight: 12,
+  },
+  historyDate: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#292424',
+  },
+  offerCard: {
+    borderWidth: 1,
+    borderColor: '#292424',
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    backgroundColor: '#F6F5F0',
+  },
+  offerBuyer: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#292424',
+  },
+  offerMeta: {
+    fontSize: 13,
+    color: '#292424',
+  },
+  chatLink: {
+    paddingTop: 4,
+  },
+  chatLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B6331E',
   },
 });

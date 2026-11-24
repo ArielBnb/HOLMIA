@@ -10,49 +10,46 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { authColors as colors } from '../styles/authTheme';
 import {
   getConversationsForRole,
   sendMessage,
   subscribeToRealtimeMessages,
 } from '../services/chatService';
 
-export default function MessagesScreen({ currentSession, initialConversationId, onBackToNav }) {
+export default function MessagesScreen({ currentSession, initialConversationId }) {
   const role = currentSession?.role || 'buyer';
   const userName = currentSession?.full_name || currentSession?.username || 'User';
 
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
   const [inputText, setInputText] = useState('');
+  const [quickReplies, setQuickReplies] = useState({});
   const [sending, setSending] = useState(false);
   const scrollViewRef = useRef(null);
 
   const fetchConversations = async () => {
     const list = await getConversationsForRole(role, currentSession?.id);
-    setConversations(list);
+    setConversations(list || []);
     setActiveConv((currentActive) => {
       if (!currentActive) {
         if (initialConversationId) {
-          return list.find((c) => c.id === initialConversationId) || null;
+          return (list || []).find((c) => c.id === initialConversationId) || null;
         }
         return null;
       }
-      const updated = list.find((c) => c.id === currentActive.id);
+      const updated = (list || []).find((c) => c.id === currentActive.id);
       return updated || currentActive;
     });
   };
 
   useEffect(() => {
     fetchConversations();
-
-    // 1. Polling interval (every 2.5s) for rock-solid sync across all devices
     const interval = setInterval(fetchConversations, 2500);
 
-    // 2. Instant WebSocket listener for live Supabase broadcasts
     const unsubscribe = subscribeToRealtimeMessages((remoteMsg) => {
       setActiveConv((currentActive) => {
         if (!currentActive || currentActive.id !== remoteMsg.conversation_id) return currentActive;
-        const exists = currentActive.messages.some((m) => m.id === remoteMsg.id);
+        const exists = (currentActive.messages || []).some((m) => m.id === remoteMsg.id);
         if (exists) return currentActive;
 
         const d = new Date(remoteMsg.created_at);
@@ -60,7 +57,7 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
         return {
           ...currentActive,
           messages: [
-            ...currentActive.messages,
+            ...(currentActive.messages || []),
             {
               id: remoteMsg.id,
               senderRole: remoteMsg.sender_role,
@@ -71,11 +68,7 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
           ],
         };
       });
-
       fetchConversations();
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 80);
     });
 
     return () => {
@@ -84,14 +77,7 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
     };
   }, [role, initialConversationId]);
 
-  const handleSelectConversation = (conv) => {
-    setActiveConv(conv);
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  };
-
-  const handleSend = async () => {
+  const handleSendInThread = async () => {
     if (!inputText.trim() || !activeConv || sending) return;
     setSending(true);
     try {
@@ -101,7 +87,6 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
         text: inputText,
       });
       setInputText('');
-      // Update local state
       setActiveConv((prev) => ({
         ...prev,
         messages: [...(prev.messages || []), newMsg],
@@ -109,178 +94,168 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
       fetchConversations();
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (err) {
-      console.warn('Error sending message:', err);
+      }, 80);
+    } catch {
+      // handled gracefully
     } finally {
       setSending(false);
     }
   };
 
-  const getPartnerDescription = (conv) => {
-    if (conv.channelType === 'seller_buyer') {
+  const handleQuickReply = async (convId) => {
+    const text = (quickReplies[convId] || '').trim();
+    if (!text || sending) return;
+    setSending(true);
+    try {
+      await sendMessage(convId, {
+        senderRole: role,
+        senderName: userName,
+        text,
+      });
+      setQuickReplies((prev) => ({ ...prev, [convId]: '' }));
+      await fetchConversations();
+    } catch {
+      // handled gracefully
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const getCounterpartyName = (conv) => {
+    if (conv.channelType === 'agent_buyer') {
       return role === 'buyer'
-        ? `Direct with Seller: ${conv.participants?.sellerName || 'Owner'}`
-        : `Direct with Buyer: ${conv.participants?.buyerName || 'Buyer'}`;
+        ? conv.participants?.agentName || 'Assigned Agent'
+        : conv.participants?.buyerName || 'Buyer';
     }
     if (conv.channelType === 'agent_seller') {
       return role === 'seller'
-        ? `With Agent: ${conv.participants?.agentName || 'Assigned Agent'}`
-        : `With Seller: ${conv.participants?.sellerName || 'Owner'}`;
+        ? conv.participants?.agentName || 'Assigned Agent'
+        : conv.participants?.sellerName || 'Seller';
     }
-    if (conv.channelType === 'agent_buyer') {
-      return role === 'buyer'
-        ? `With Agent: ${conv.participants?.agentName || 'Assigned Agent'}`
-        : `With Buyer: ${conv.participants?.buyerName || 'Buyer'}`;
-    }
-    return 'Discussion';
+    return role === 'buyer'
+      ? conv.participants?.sellerName || 'Seller'
+      : conv.participants?.buyerName || 'Buyer';
   };
 
-  // --- THREAD VIEW ---
+  // --- LIST VIEW (Figma 17 - Enquiries) ---
   if (!activeConv) {
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.headerRow}>
-            <Text style={styles.screenTitle}>
-              {role === 'agent' ? 'Enquiries' : 'Messages'}
-            </Text>
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>{role.toUpperCase()}</Text>
-            </View>
-          </View>
-
-          {/* Business Rules Explanation Card */}
-          <View style={styles.ruleBox}>
-            <Text style={styles.ruleTitle}>Communication Protocol</Text>
-            <Text style={styles.ruleBody}>
-              {role === 'buyer' &&
-                '• Properties with Agent: You chat with the assigned Agent.\n• Direct Seller properties: You chat directly with the Owner.'}
-              {role === 'seller' &&
-                '• Properties with Agent: You coordinate with your Agent.\n• Direct properties: You negotiate directly with Buyers.'}
-              {role === 'agent' &&
-                '• You represent assigned properties: Chat with Sellers and prospective Buyers.'}
-            </Text>
-          </View>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.screenTitle}>
+            {role === 'agent' ? 'Enquiries' : 'Messages'}
+          </Text>
 
           {conversations.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No active conversations yet.</Text>
-              <Text style={styles.emptySubtext}>
-                {role === 'buyer'
-                  ? 'Browse the catalogue to inquire about a property!'
-                  : 'Conversations will appear here when buyers or partners contact you.'}
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No enquiries yet</Text>
+              <Text style={styles.emptySub}>
+                Conversations will appear here when buyers or sellers message you.
               </Text>
             </View>
           ) : (
-            <View style={styles.list}>
-              {conversations.map((conv) => {
-                const lastMsg = conv.messages[conv.messages.length - 1];
-                return (
+            conversations.map((conv) => {
+              const msgs = conv.messages || [];
+              const lastMsg = msgs[msgs.length - 1];
+              const isAnswered = lastMsg && lastMsg.senderRole === role;
+              const partnerName = getCounterpartyName(conv);
+
+              return (
+                <View key={conv.id} style={styles.card}>
                   <Pressable
-                    key={conv.id}
-                    style={styles.convCard}
-                    onPress={() => handleSelectConversation(conv)}
+                    style={styles.cardHeader}
+                    onPress={() => setActiveConv(conv)}
                   >
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.propertyTitle} numberOfLines={1}>
-                        {conv.propertyTitle}
-                      </Text>
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          conv.hasAgent ? styles.agentBadge : styles.directBadge,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusBadgeText,
-                            conv.hasAgent ? styles.agentBadgeText : styles.directBadgeText,
-                          ]}
-                        >
-                          {conv.hasAgent ? 'With Agent' : 'Direct (No Agent)'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text style={styles.partnerText}>
-                      {getPartnerDescription(conv)}
+                    <Text style={styles.buyerName} numberOfLines={1}>
+                      {partnerName}
                     </Text>
-
-                    {lastMsg ? (
-                      <View style={styles.lastMsgRow}>
-                        <Text style={styles.lastMsgText} numberOfLines={1}>
-                          <Text style={{ fontWeight: '600' }}>{lastMsg.senderName}: </Text>
-                          {lastMsg.text}
-                        </Text>
-                        <Text style={styles.timeText}>{lastMsg.timestamp}</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.noMsgText}>No messages yet. Tap to start chatting.</Text>
-                    )}
+                    <View style={styles.pill}>
+                      <Text style={styles.pillText}>
+                        {isAnswered ? 'Answered' : 'New'}
+                      </Text>
+                    </View>
                   </Pressable>
-                );
-              })}
-            </View>
+
+                  <Pressable onPress={() => setActiveConv(conv)}>
+                    <Text style={styles.questionText} numberOfLines={2}>
+                      {conv.propertyTitle} - {lastMsg ? lastMsg.text : 'No messages yet'}
+                    </Text>
+                  </Pressable>
+
+                  {/* Figma 17 Inline Reply Input + Primary CTA for New enquiries */}
+                  {!isAnswered && (
+                    <>
+                      <View style={styles.inputBox}>
+                        <TextInput
+                          style={styles.inputField}
+                          placeholder="Reply..."
+                          placeholderTextColor="#7A736D"
+                          value={quickReplies[conv.id] || ''}
+                          onChangeText={(val) =>
+                            setQuickReplies((prev) => ({ ...prev, [conv.id]: val }))
+                          }
+                        />
+                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={sending || !(quickReplies[conv.id] || '').trim()}
+                        style={[
+                          styles.primaryBtn,
+                          (!(quickReplies[conv.id] || '').trim() || sending) &&
+                            styles.primaryBtnDisabled,
+                        ]}
+                        onPress={() => handleQuickReply(conv.id)}
+                      >
+                        <Text style={styles.primaryBtnText}>Reply</Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+              );
+            })
           )}
         </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // --- CONVERSATION VIEW ---
+  // --- FULL THREAD VIEW ---
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={80}
       >
-        {/* Header */}
-        <View style={styles.chatHeader}>
-          <Pressable style={styles.backBtn} onPress={() => setActiveConv(null)}>
-            <Text style={styles.backBtnText}>← Back</Text>
+        <View style={styles.threadHeader}>
+          <Pressable onPress={() => setActiveConv(null)}>
+            <Text style={styles.screenTitle} numberOfLines={1}>
+              ← {getCounterpartyName(activeConv)}
+            </Text>
           </Pressable>
-          <View style={styles.headerInfo}>
-            <Text style={styles.chatPropertyTitle} numberOfLines={1}>
-              {activeConv.propertyTitle}
-            </Text>
-            <Text style={styles.chatPartnerSub}>
-              {getPartnerDescription(activeConv)}
-            </Text>
-          </View>
+          <Text style={styles.threadSubtitle} numberOfLines={1}>
+            {activeConv.propertyTitle}
+          </Text>
         </View>
 
-        {/* Message Feed */}
         <ScrollView
           ref={scrollViewRef}
-          contentContainerStyle={styles.messagesScroll}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+          style={styles.flex1}
+          contentContainerStyle={styles.threadMessages}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
         >
-          {activeConv.messages.map((msg) => {
-            const isMe = msg.senderRole === role;
+          {(activeConv.messages || []).map((msg, idx) => {
+            const isMine = msg.senderRole === role;
             return (
               <View
-                key={msg.id}
-                style={[
-                  styles.msgWrapper,
-                  isMe ? styles.msgWrapperRight : styles.msgWrapperLeft,
-                ]}
+                key={msg.id || idx}
+                style={[styles.bubbleWrap, isMine ? styles.bubbleWrapMine : styles.bubbleWrapOther]}
               >
-                <Text style={styles.senderLabel}>
-                  {isMe ? 'You' : `${msg.senderName} (${msg.senderRole})`} · {msg.timestamp}
+                <Text style={styles.bubbleMeta}>
+                  {isMine ? 'You' : msg.senderName} · {msg.timestamp}
                 </Text>
-                <View
-                  style={[
-                    styles.msgBubble,
-                    isMe ? styles.msgBubbleRight : styles.msgBubbleLeft,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.msgText,
-                      isMe ? styles.msgTextRight : styles.msgTextLeft,
-                    ]}
-                  >
+                <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
+                  <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
                     {msg.text}
                   </Text>
                 </View>
@@ -289,23 +264,25 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
           })}
         </ScrollView>
 
-        {/* Input Bar */}
-        <View style={styles.inputBar}>
+        <View style={styles.composerRow}>
           <TextInput
-            style={styles.textInput}
+            style={styles.composerInput}
+            placeholder="Reply..."
+            placeholderTextColor="#7A736D"
             value={inputText}
             onChangeText={setInputText}
-            placeholder={`Reply as ${role}...`}
-            placeholderTextColor="#888"
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
+            onSubmitEditing={handleSendInThread}
           />
           <Pressable
-            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-            onPress={handleSend}
+            accessibilityRole="button"
             disabled={!inputText.trim() || sending}
+            style={[
+              styles.sendBtn,
+              (!inputText.trim() || sending) && styles.primaryBtnDisabled,
+            ]}
+            onPress={handleSendInThread}
           >
-            <Text style={styles.sendBtnText}>Send</Text>
+            <Text style={styles.sendBtnText}>Reply</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -314,262 +291,194 @@ export default function MessagesScreen({ currentSession, initialConversationId, 
 }
 
 const styles = StyleSheet.create({
+  flex1: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
-  scroll: {
-    padding: 16,
-    paddingBottom: 40,
-    backgroundColor: '#FFFFFF',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2A2424',
-  },
-  roleBadge: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: '#FFFFFF',
-  },
-  roleBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2A2424',
-  },
-  ruleBox: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    backgroundColor: '#FAFAFA',
-  },
-  ruleTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2A2424',
-    marginBottom: 4,
-  },
-  ruleBody: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#555555',
-  },
-  list: {
+  content: {
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 28,
     gap: 12,
   },
-  convCard: {
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#292424',
+  },
+  card: {
     borderWidth: 1,
-    borderColor: '#2A2424',
+    borderColor: '#292424',
     borderRadius: 8,
-    padding: 14,
-    backgroundColor: '#FFFFFF',
+    padding: 12,
+    gap: 6,
+    backgroundColor: '#F6F5F0',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: 8,
   },
-  propertyTitle: {
+  buyerName: {
+    flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: '#2A2424',
-    flex: 1,
-    marginRight: 8,
+    color: '#292424',
   },
-  statusBadge: {
+  pill: {
+    backgroundColor: '#F6F5F0',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  agentBadge: {
-    borderColor: '#B6311E',
-    backgroundColor: '#FFF5F4',
-  },
-  agentBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#B6311E',
-  },
-  directBadge: {
-    borderColor: '#2A2424',
-    backgroundColor: '#F5F5F5',
-  },
-  directBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#2A2424',
-  },
-  partnerText: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  lastMsgRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-    paddingTop: 8,
-  },
-  lastMsgText: {
-    fontSize: 12,
-    color: '#444',
-    flex: 1,
-    marginRight: 8,
-  },
-  timeText: {
-    fontSize: 11,
-    color: '#888',
-  },
-  noMsgText: {
-    fontSize: 12,
-    color: '#888',
-    fontStyle: 'italic',
-  },
-  emptyState: {
-    padding: 30,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2A2424',
-    marginBottom: 6,
-  },
-  emptySubtext: {
-    fontSize: 13,
-    color: '#777',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-
-  // Active Chat Styles
-  chatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2424',
-    backgroundColor: '#FFFFFF',
-  },
-  backBtn: {
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 6,
+    borderColor: '#292424',
+    borderRadius: 20,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginRight: 10,
-    backgroundColor: '#FFFFFF',
   },
-  backBtnText: {
+  pillText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#2A2424',
+    fontWeight: '400',
+    color: '#292424',
   },
-  headerInfo: {
-    flex: 1,
+  questionText: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#292424',
   },
-  chatPropertyTitle: {
+  inputBox: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#292424',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    backgroundColor: '#F6F5F0',
+    marginTop: 4,
+  },
+  inputField: {
     fontSize: 14,
+    color: '#292424',
+    padding: 0,
+  },
+  primaryBtn: {
+    height: 52,
+    backgroundColor: '#B6331E',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnDisabled: {
+    opacity: 0.45,
+  },
+  primaryBtnText: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#2A2424',
+    color: '#F6F5F0',
   },
-  chatPartnerSub: {
-    fontSize: 11,
-    color: '#666',
+  emptyCard: {
+    borderWidth: 1,
+    borderColor: '#292424',
+    borderRadius: 8,
+    padding: 20,
+    alignItems: 'center',
+    gap: 4,
   },
-  messagesScroll: {
-    padding: 16,
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#292424',
+  },
+  emptySub: {
+    fontSize: 13,
+    color: '#66605A',
+    textAlign: 'center',
+  },
+  threadHeader: {
+    paddingHorizontal: 32,
+    paddingTop: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DDDDDD',
+    gap: 2,
+  },
+  threadSubtitle: {
+    fontSize: 13,
+    color: '#66605A',
+  },
+  threadMessages: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     gap: 12,
   },
-  msgWrapper: {
+  bubbleWrap: {
     maxWidth: '82%',
+    gap: 4,
   },
-  msgWrapperRight: {
+  bubbleWrapMine: {
     alignSelf: 'flex-end',
     alignItems: 'flex-end',
   },
-  msgWrapperLeft: {
+  bubbleWrapOther: {
     alignSelf: 'flex-start',
     alignItems: 'flex-start',
   },
-  senderLabel: {
-    fontSize: 10,
-    color: '#777',
-    marginBottom: 3,
+  bubbleMeta: {
+    fontSize: 11,
+    color: '#66605A',
   },
-  msgBubble: {
+  bubble: {
     borderRadius: 8,
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  bubbleMine: {
+    backgroundColor: '#B6331E',
+  },
+  bubbleOther: {
+    backgroundColor: '#F6F5F0',
     borderWidth: 1,
+    borderColor: '#292424',
   },
-  msgBubbleRight: {
-    backgroundColor: '#B6311E',
-    borderColor: '#B6311E',
+  bubbleText: {
+    fontSize: 14,
+    color: '#292424',
   },
-  msgBubbleLeft: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#2A2424',
+  bubbleTextMine: {
+    color: '#F6F5F0',
   },
-  msgText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  msgTextRight: {
-    color: '#FFFFFF',
-  },
-  msgTextLeft: {
-    color: '#2A2424',
-  },
-  inputBar: {
+  composerRow: {
     flexDirection: 'row',
-    padding: 12,
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#2A2424',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    gap: 8,
+    borderTopColor: '#DDDDDD',
+    backgroundColor: '#F6F5F0',
   },
-  textInput: {
+  composerInput: {
     flex: 1,
+    height: 48,
     borderWidth: 1,
-    borderColor: '#2A2424',
+    borderColor: '#292424',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#2A2424',
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: '#292424',
+    backgroundColor: '#F6F5F0',
   },
   sendBtn: {
-    backgroundColor: '#B6311E',
+    height: 48,
+    paddingHorizontal: 18,
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  sendBtnDisabled: {
-    opacity: 0.4,
+    backgroundColor: '#B6331E',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sendBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
+    color: '#F6F5F0',
   },
 });
-

@@ -27,8 +27,8 @@ function MainHome({ profile }) {
   const { signOut } = useAuth();
   const userRole = profile?.role || 'agent';
 
-  // Role-specific initial tab & navigation
-  const [activeTab, setActiveTab] = useState(userRole === 'agent' ? 'properties' : 'listings');
+  // Role-specific initial tab & navigation (Figma 13: Dashboard is Agent home)
+  const [activeTab, setActiveTab] = useState(userRole === 'agent' ? 'stats' : 'listings');
   const [editingProperty, setEditingProperty] = useState(null);
   const [viewingDetailsProperty, setViewingDetailsProperty] = useState(null);
   const [chatConvId, setChatConvId] = useState(null);
@@ -252,7 +252,7 @@ function MainHome({ profile }) {
                 setActiveTab(tab.id);
               }}
             >
-              <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
+              <Text numberOfLines={1} style={[styles.navLabel, isActive && styles.navLabelActive]}>
                 {tab.label}
               </Text>
             </Pressable>
@@ -330,79 +330,79 @@ export default function AuthNavigator() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   content: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   bottomNav: {
     flexDirection: 'row',
-    height: 60,
+    height: 56,
     borderTopWidth: 1,
-    borderTopColor: '#2A2424',
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'space-around',
+    borderTopColor: '#DDDDDD',
+    backgroundColor: '#F6F5F0',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 16,
   },
   navItem: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
     height: '100%',
   },
   navLabel: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#888888',
+    fontWeight: '400',
+    color: '#292424',
   },
   navLabelActive: {
     fontWeight: '700',
-    color: '#2A2424',
+    color: '#292424',
   },
   profileContainer: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 32,
+    paddingTop: 24,
     justifyContent: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   profileTitle: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#2A2424',
-    marginBottom: 20,
+    color: '#292424',
+    marginBottom: 16,
   },
   profileCard: {
     borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 10,
-    padding: 18,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 24,
+    borderColor: '#292424',
+    borderRadius: 8,
+    padding: 16,
+    backgroundColor: '#F6F5F0',
+    marginBottom: 16,
     gap: 8,
   },
   profileName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#2A2424',
+    color: '#292424',
     marginBottom: 4,
   },
   profileMeta: {
     fontSize: 14,
-    color: '#444444',
+    color: '#292424',
   },
   logoutBtn: {
-    borderWidth: 1,
-    borderColor: '#B6311E',
+    height: 52,
     borderRadius: 8,
-    paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    backgroundColor: '#B6331E',
   },
   logoutBtnText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#B6311E',
+    color: '#F6F5F0',
   },
 });
