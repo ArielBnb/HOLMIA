@@ -16,7 +16,7 @@ function explain(error) {
 }
 
 export async function getOffersReceived() {
-  const { data, error } = await getSupabase().rpc('offers_received');
+  const { data, error } = await getSupabase().rpc('offers_received_with_message');
   if (error) throw explain(error);
   return data ?? [];
 }
