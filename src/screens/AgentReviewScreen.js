@@ -20,8 +20,9 @@ export default function AgentReviewScreen({ currentSession, onEditProperty }) {
     try {
       const all = await getProperties({ activeOnly: false });
       if (all && all.length > 0) {
+        // Only drafts assigned to the signed-in agent.
         const pendingReview = all.filter(
-          (p) => p.status === 'draft' && p.agent_id !== null && p.agent_id !== undefined
+          (p) => p.status === 'draft' && p.agent_id === currentSession?.id
         );
         setDrafts(pendingReview);
       }
@@ -31,7 +32,8 @@ export default function AgentReviewScreen({ currentSession, onEditProperty }) {
   };
 
   useEffect(() => {
-    loadDrafts();
+    const first = setTimeout(loadDrafts, 0);
+    return () => clearTimeout(first);
   }, []);
 
   const onRefresh = async () => {
@@ -43,11 +45,11 @@ export default function AgentReviewScreen({ currentSession, onEditProperty }) {
   const handleApprove = async (item) => {
     setFeedback(`Approving "${item.title}"...`);
     try {
-      if (item.id && item.id.includes('-')) {
-        await updateProperty(item.id, { status: 'active' });
-      }
-    } catch {
-      // Handled gracefully
+      await updateProperty(item.id, { status: 'active' });
+    } catch (err) {
+      // Show the database's reason; the draft stays in the list.
+      setFeedback(`❌ "${item.title}" was not published: ${err.message}`);
+      return;
     }
     setDrafts((prev) => prev.filter((p) => p.id !== item.id));
     setFeedback(`"${item.title}" approved and published.`);

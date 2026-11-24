@@ -6,81 +6,45 @@ import {
   Text,
   View,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
-import { getProperties } from '../services/propertyService';
+import { getSupabase } from '../config/supabase';
 
-const DEFAULT_STATS = {
-  activeCount: 3,
-  avgPrice: 632000,
-  listingsPerUser: [
-    { name: 'Demo Seller', count: 3 },
-  ],
-  offersPerProperty: [
-    { title: 'Bright Apartment in Central London', count: 2 },
-    { title: 'Industrial Converted Loft in Birmingham', count: 1 },
-    { title: 'Furnished Student Studio in Oxford', count: 1 },
-  ],
-};
+const EMPTY_STATS = { activeCount: 0, avgPrice: 0, listingsPerUser: [], offersPerProperty: [] };
 
+// Figma 13. All numbers come from public.agent_dashboard() for the signed-in
+// Agent's assigned listings (no demo or estimated values).
 export default function AgentStatsScreen({ currentSession }) {
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [stats, setStats] = useState(EMPTY_STATS);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState('');
 
   const loadStats = useCallback(async () => {
     try {
-      const all = await getProperties({ activeOnly: false });
-      if (all && all.length > 0) {
-        // Real stats strictly for the Agent's assigned portfolio
-        const agentProperties = all.filter(
-          (p) => p.agent_id !== null && p.agent_id !== undefined
-        );
-        const activeListings = agentProperties.filter((p) => p.status === 'active');
-        const count = activeListings.length;
-        const total = activeListings.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-        const avg = count > 0 ? Math.round(total / count) : 0;
-
-        // Active listings per user (Figma 13)
-        const userMap = {};
-        activeListings.forEach((p) => {
-          const seller = p.seller_name || `User ${p.seller_id?.slice(0, 6) || '1'}`;
-          userMap[seller] = (userMap[seller] || 0) + 1;
-        });
-        const perUserList = Object.entries(userMap)
-          .map(([name, c]) => ({ name, count: c }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 5);
-
-        // Offers per property (Figma 13)
-        const offersList = agentProperties
-          .filter((p) => p.status !== 'draft')
-          .slice(0, 5)
-          .map((p) => ({
-            title: p.title,
-            count:
-              p.offersCount !== undefined
-                ? p.offersCount
-                : p.status === 'under_offer'
-                ? 2
-                : p.status === 'active'
-                ? 1
-                : 0,
-          }))
-          .sort((a, b) => b.count - a.count);
-
-        setStats({
-          activeCount: count,
-          avgPrice: avg,
-          listingsPerUser: perUserList,
-          offersPerProperty: offersList,
-        });
+      const { data, error: rpcError } = await getSupabase().rpc('agent_dashboard');
+      if (rpcError) {
+        throw new Error(rpcError.code === 'PGRST202'
+          ? 'Statistics are not set up yet: apply migration 20261124140000_recette_fixes.sql in Supabase.'
+          : rpcError.message);
       }
-    } catch {
-      // Keep current stats if network/store fails
+      setStats({
+        activeCount: Number(data?.active_count ?? 0),
+        avgPrice: Number(data?.avg_active_price ?? 0),
+        listingsPerUser: data?.listings_per_seller ?? [],
+        offersPerProperty: data?.offers_per_property ?? [],
+      });
+      setError('');
+    } catch (failure) {
+      setError(failure.message || 'Unable to load statistics.');
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
   useEffect(() => {
-    loadStats();
+    const first = setTimeout(loadStats, 0);
+    return () => clearTimeout(first);
   }, [loadStats]);
 
   const onRefresh = async () => {
@@ -103,6 +67,8 @@ export default function AgentStatsScreen({ currentSession }) {
       >
         {/* Figma 13 Header */}
         <Text style={styles.screenTitle}>Dashboard</Text>
+        {!loaded && <ActivityIndicator color="#B6331E" accessibilityLabel="Loading statistics" />}
+        {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
 
         {/* Top KPI Cards — rgba(182,51,30,0.1), borderless, rounded-8 */}
         <View style={styles.kpiRow}>
@@ -165,6 +131,15 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 28,
     gap: 12,
+  },
+  errorText: {
+    color: '#B6331E',
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#B6331E',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: 'rgba(182, 51, 30, 0.1)',
   },
   screenTitle: {
     fontSize: 20,

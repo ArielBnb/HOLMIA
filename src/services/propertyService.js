@@ -1,4 +1,4 @@
-import { getSupabase } from '../config/supabase';
+import { getSupabase, isSupabaseConfigured } from '../config/supabase';
 import { applyBuyerFilters } from './buyerFilters';
 
 const fields =
@@ -142,29 +142,23 @@ let memoryProperties = [
   },
 ];
 
+// Supabase is the source of truth: its errors (RLS, locks, forbidden
+// transitions, validation) are thrown to the screen, never hidden. The
+// in-memory dataset above is only used when Supabase is not configured
+// (offline demo), so a refused write can never look saved.
 export async function getProperties({ activeOnly = true, limit = 50 } = {}) {
-  try {
-    const sb = getSupabase();
-    if (sb) {
-      let query = sb
-        .from('properties')
-        .select(fields)
-        .order('created_at', { ascending: false })
-        .limit(Math.min(100, Math.max(1, limit)));
-      if (activeOnly) query = query.eq('status', 'active');
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        return data;
-      }
-    }
-  } catch (err) {
-    // Fall back to memory dataset
+  if (!isSupabaseConfigured) {
+    return activeOnly ? memoryProperties.filter((p) => p.status === 'active') : [...memoryProperties];
   }
-
-  if (activeOnly) {
-    return memoryProperties.filter((p) => p.status === 'active');
-  }
-  return [...memoryProperties];
+  let query = getSupabase()
+    .from('properties')
+    .select(fields)
+    .order('created_at', { ascending: false })
+    .limit(Math.min(100, Math.max(1, limit)));
+  if (activeOnly) query = query.eq('status', 'active');
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
 }
 
 // RLS returns only the signed-in Seller's own rows, drafts included.
@@ -177,27 +171,15 @@ export async function getSellerProperties(sellerId, { limit = 20 } = {}) {
 }
 
 export async function createProperty(property) {
-  try {
-    const sb = getSupabase();
-    if (sb) {
-      const { data, error } = await sb.from('properties').insert(property).select(fields).single();
-      if (!error && data) {
-        memoryProperties.unshift(data);
-        return data;
-      }
-    }
-  } catch (err) {}
-
-  const localNew = {
-    id: 'prop-' + Date.now(),
-    ...property,
-    status: property.status || 'draft',
-    created_at: new Date().toISOString(),
-  };
-  memoryProperties.unshift(localNew);
-  return localNew;
+  if (!isSupabaseConfigured) {
+    const localNew = { id: 'prop-' + Date.now(), ...property, status: property.status || 'draft', created_at: new Date().toISOString() };
+    memoryProperties.unshift(localNew);
+    return localNew;
+  }
+  const { data, error } = await getSupabase().from('properties').insert(property).select(fields).single();
+  if (error) throw error;
+  return data;
 }
-
 // RLS hides other Sellers' rows, so "0 rows" means not found or not yours.
 export async function updateOwnProperty(id, changes) {
   const { data, error } = await getSupabase().from('properties').update(changes).eq('id', id).select(fields);
@@ -214,37 +196,14 @@ export async function deleteOwnProperty(id) {
 }
 
 export async function updateProperty(id, changes) {
-  try {
-    const sb = getSupabase();
-    if (sb) {
-      const { data, error } = await sb.from('properties').update(changes).eq('id', id).select(fields).single();
-      if (!error && data) {
-        memoryProperties = memoryProperties.map((p) => (p.id === id ? { ...p, ...data } : p));
-        return data;
-      }
-    }
-  } catch (err) {}
-
-  memoryProperties = memoryProperties.map((p) => {
-    if (p.id === id) {
-      const updated = { ...p, ...changes };
-      if (changes.status && changes.status !== p.status) {
-        const historyEntry = {
-          id: 'h-' + Date.now(),
-          from: p.status,
-          to: changes.status,
-          actor: 'Demo Agent',
-          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
-          notes: `Status changed to ${changes.status}`,
-        };
-        updated.history = [...(p.history || []), historyEntry];
-      }
-      return updated;
-    }
-    return p;
-  });
-
-  return memoryProperties.find((p) => p.id === id) || { id, ...changes };
+  if (!isSupabaseConfigured) {
+    memoryProperties = memoryProperties.map((p) => (p.id === id ? { ...p, ...changes } : p));
+    return memoryProperties.find((p) => p.id === id) || { id, ...changes };
+  }
+  const { data, error } = await getSupabase().from('properties').update(changes).eq('id', id).select(fields);
+  if (error) throw error;
+  if (!data.length) throw new Error('Listing not found, or you are not allowed to change it.');
+  return data[0];
 }
 
 // Buyer queries always enforce active status, in addition to server-side RLS.

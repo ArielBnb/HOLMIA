@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 /**
@@ -6,8 +6,9 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
  * Works across Web, iOS, and Android with zero external dependencies.
  */
 export default function NotificationBanner({ notification, onPress, onDismiss }) {
-  const translateY = useRef(new Animated.Value(-110)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  // Created once per banner (lazy state), readable during render.
+  const [translateY] = useState(() => new Animated.Value(-110));
+  const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (!notification) return;

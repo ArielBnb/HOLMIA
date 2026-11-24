@@ -167,6 +167,14 @@ export class SQLiteDatabase {
       );
       CREATE INDEX IF NOT EXISTS idx_enquiries_prop ON enquiries(property_id);
 
+      -- Buyer favourites (same shape as public.favourites in Supabase).
+      CREATE TABLE IF NOT EXISTS favourites (
+        buyer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (buyer_id, property_id)
+      );
+
       CREATE INDEX IF NOT EXISTS idx_properties_seller ON properties(seller_id);
       CREATE INDEX IF NOT EXISTS idx_properties_agent ON properties(agent_id);
       CREATE INDEX IF NOT EXISTS idx_properties_catalogue ON properties(status, listing_type, price);

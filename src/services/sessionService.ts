@@ -317,6 +317,35 @@ export class SessionService {
     });
   }
 
+  // ==========================================
+  // Favourites (Buyer only, published listings)
+  // ==========================================
+
+  /** Save a published listing (idempotent). */
+  public addFavourite(propertyId: string): void {
+    const user = this.requireRole('buyer');
+    const prop = this.propertyRepo.findById(propertyId);
+    if (!prop || prop.status !== 'active') {
+      throw new Error('Only active listings can be saved as favourites');
+    }
+    this.db.run(`INSERT OR IGNORE INTO favourites (buyer_id, property_id) VALUES (?, ?)`, [user.id, propertyId]);
+  }
+
+  public removeFavourite(propertyId: string): void {
+    const user = this.requireRole('buyer');
+    this.db.run(`DELETE FROM favourites WHERE buyer_id = ? AND property_id = ?`, [user.id, propertyId]);
+  }
+
+  /** Buyer's own favourites, newest first, with the listing's current status. */
+  public getMyFavourites(): Property[] {
+    const user = this.requireRole('buyer');
+    return this.db.query<Property>(
+      `SELECT p.* FROM favourites f JOIN properties p ON p.id = f.property_id
+       WHERE f.buyer_id = ? ORDER BY f.created_at DESC, f.rowid DESC`,
+      [user.id]
+    );
+  }
+
   /** Buyer: own offers with the decision (pending / accepted / rejected). */
   public getMyOffers(): Offer[] {
     const user = this.requireRole('buyer');

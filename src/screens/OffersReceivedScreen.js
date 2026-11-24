@@ -20,6 +20,7 @@ import { colors } from '../styles/theme';
 import EnquiriesReceivedScreen from './EnquiriesReceivedScreen';
 
 import RentalsReceivedScreen from './RentalsReceivedScreen';
+import PropertyMessages, { useConversations } from '../components/PropertyMessages';
 const danger = '#B3261E';
 const OFFER_STATUS = {
   pending: { label: 'Pending', bg: '#FFF4E5', fg: '#8A5300' },
@@ -36,7 +37,10 @@ function Badge({ text, bg, fg }) {
 
 export default function OffersReceivedScreen({ currentSession }) {
   const role = currentSession?.role;
-  const [section, setSection] = useState('offers'); // 'offers' | 'enquiries'
+  const [section, setSection] = useState('offers'); // 'offers' | 'rentals' | 'enquiries' | 'messages'
+  // Private property messages (Seller <-> Agent, Agent <-> Buyer, direct Seller <-> Buyer).
+  const inbox = useConversations(role === 'seller' || role === 'agent');
+  const [thread, setThread] = useState(null);
   const [groups, setGroups] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -118,7 +122,12 @@ export default function OffersReceivedScreen({ currentSession }) {
         </View>
 
         <View style={styles.segment}>
-          {[{ id: 'offers', label: 'Offers' }, { id: 'rentals', label: 'Applications' }, { id: 'enquiries', label: 'Enquiries' }].map((tab) => (
+          {[
+            { id: 'offers', label: 'Offers' },
+            { id: 'rentals', label: 'Applications' },
+            { id: 'enquiries', label: 'Enquiries' },
+            { id: 'messages', label: inbox.unread > 0 ? `Messages (${inbox.unread})` : 'Messages' },
+          ].map((tab) => (
             <Pressable
               key={tab.id}
               accessibilityRole="tab"
@@ -133,6 +142,16 @@ export default function OffersReceivedScreen({ currentSession }) {
 
         {section === 'rentals' && <RentalsReceivedScreen />}
         {section === 'enquiries' && <EnquiriesReceivedScreen role={role} />}
+        {section === 'messages' && (
+          <PropertyMessages
+            meId={currentSession?.id}
+            conversations={inbox.conversations}
+            onRefresh={inbox.refresh}
+            active={thread}
+            onOpen={setThread}
+            onClose={() => { setThread(null); inbox.refresh(); }}
+          />
+        )}
 
         {section === 'offers' && (<>
         {notice ? <Text style={styles.success} accessibilityRole="alert">{notice}</Text> : null}

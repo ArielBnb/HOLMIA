@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { getProperties } from '../services/propertyService';
+import { getOffersReceived } from '../services/offerService';
 import { startOrFindConversation } from '../services/chatService';
 
 export default function AgentPortfolioScreen({
@@ -26,39 +27,33 @@ export default function AgentPortfolioScreen({
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadPortfolio = useCallback(async () => {
+    // The query also returns the public catalogue (other owners' active
+    // listings): keep only the signed-in user's own / assigned listings.
+    const me = currentSession?.id;
     const filterByRole = (list) => {
-      if (userRole === 'agent') {
-        return list.filter(
-          (p) => p.agent_id !== null && p.agent_id !== undefined && p.status !== 'draft'
-        );
-      }
+      if (userRole === 'agent') return list.filter((p) => p.agent_id === me && p.status !== 'draft');
+      if (userRole === 'seller') return list.filter((p) => p.seller_id === me);
       return list;
     };
 
     try {
       const data = await getProperties({ activeOnly: false });
-      if (data && data.length > 0) {
-        setProperties(
-          filterByRole(data).map((p) => ({
-            ...p,
-            offersCount:
-              p.offersCount !== undefined
-                ? p.offersCount
-                : p.status === 'under_offer'
-                ? 2
-                : p.status === 'active'
-                ? 1
-                : 0,
-          }))
-        );
+      // Real offer counts (public.offers_received: own / assigned listings only).
+      let counts = {};
+      try {
+        counts = (await getOffersReceived()).reduce((acc, o) => ({ ...acc, [o.property_id]: (acc[o.property_id] || 0) + 1 }), {});
+      } catch {
+        // Offers not available yet: show 0 rather than an estimate.
       }
+      setProperties(filterByRole(data ?? []).map((p) => ({ ...p, offersCount: counts[p.id] || 0 })));
     } catch {
       // Keep current list on failure
     }
-  }, [userRole]);
+  }, [userRole, currentSession?.id]);
 
   useEffect(() => {
-    loadPortfolio();
+    const first = setTimeout(loadPortfolio, 0);
+    return () => clearTimeout(first);
   }, [loadPortfolio]);
 
   const onRefresh = useCallback(async () => {

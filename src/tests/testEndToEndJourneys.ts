@@ -76,6 +76,18 @@ try {
   check(buyerApp.getPublicCatalog({ location: 'bristol', listingType: 'sale' }).some((p) => p.id === saleId), 'Agent publishes; Buyer finds it with filters');
   uses('buyer', 'getPublicCatalog');
 
+  buyerApp.addFavourite(saleId);
+  buyerApp.addFavourite(saleId); // idempotent
+  buyerApp.addFavourite('prop-2');
+  uses('buyer', 'addFavourite');
+  check(buyerApp.getMyFavourites().filter((p) => p.id === saleId).length === 1 && buyerApp.getMyFavourites().length === 2, 'Buyer saves two favourites (no duplicate)');
+  uses('buyer', 'getMyFavourites');
+  check(buyer2App.getMyFavourites().length === 0, "Favourites are private to each Buyer");
+  expectThrow(() => sellerApp.addFavourite(saleId), AccessDeniedError, '', 'A Seller cannot save favourites');
+  buyerApp.removeFavourite('prop-2');
+  uses('buyer', 'removeFavourite');
+  check(buyerApp.getMyFavourites().map((p) => p.id).join() === saleId, 'Buyer removes a favourite');
+
   const enquiry = buyerApp.submitEnquiry(saleId, 'Is the loft convertible?');
   uses('buyer', 'submitEnquiry');
   check(agentApp.getReceivedEnquiries().some((e) => e.id === enquiry.id), 'Assigned agent receives the enquiry');
@@ -168,6 +180,8 @@ try {
   reopened.logout();
   reopened.login('buyer@holmia.example');
   check(reopened.getMyEnquiries().some((e) => e.reply?.includes('planning')), 'Enquiry reply persisted for the Buyer');
+  const favs = reopened.getMyFavourites();
+  check(favs.length === 1 && favs[0].id === saleId && favs[0].status === 'sold', 'Favourite persisted and shows the listing is now Sold');
   reopened.logout();
   check(db.query(`PRAGMA foreign_key_check`).length === 0, 'No orphan rows (foreign key check)');
 
