@@ -9,7 +9,10 @@ import {
   View,
   Pressable,
 } from 'react-native';
-import { notifyOfferAction, startOrFindConversation } from '../services/chatService';
+import { startOrFindConversation } from '../services/chatService';
+import { acceptOffer, getOffersReceived, rejectOffer } from '../services/offerService';
+import { decideRentalApplication, getRentalApplicationsReceived } from '../services/rentalService';
+import { formatMoveIn } from '../services/rentalRules';
 import { changePropertyStatus, getManagedProperties, getPropertyHistory } from '../services/transitionService';
 import {
   availableActions,
@@ -121,48 +124,53 @@ export default function PropertyLifecycleScreen({
     }
   };
 
-  // Demo offers kept for the "See offers" sub-view (real decisions: Received tab).
-  const [offers, setOffers] = useState([
-    { id: 'off-1', buyer_name: 'Alexander Wright', property_id: 'prop-1', property_title: 'Central London Flat', amount: 420000, date: '16 Nov 2026', status: 'accepted' },
-    { id: 'off-2', buyer_name: 'Sophie Bennett', property_id: 'prop-1', property_title: 'Central London Flat', amount: 415000, date: '15 Nov 2026', status: 'rejected' },
-    { id: 'off-3', buyer_name: 'James Harrison', property_id: 'prop-2', property_title: 'Oxford Student Studio', amount: 650, date: '17 Nov 2026', status: 'pending' },
-  ]);
+  // "See offers": the real offers (sale) or rental applications (rent) of the
+  // selected listing, decided through the same transactional services as the
+  // Received tab. The list and the listing status are reloaded after each decision.
+  const [deals, setDeals] = useState(null);
+  const [dealBusy, setDealBusy] = useState(null);
+  const isRent = selectedProp?.listing_type === 'rent';
 
-  const handleAcceptOffer = async (offerId) => {
-    const target = offers.find((o) => o.id === offerId);
-    if (!target) return;
-    setOffers((prev) => (prev || []).map((o) => {
-      if (o.id === offerId) return { ...o, status: 'accepted' };
-      if (o.property_id === target.property_id && o.status === 'pending') return { ...o, status: 'rejected' };
-      return o;
-    }));
+  const loadDeals = useCallback(async () => {
+    if (!selectedPropId) return;
     try {
-      await notifyOfferAction({
-        propertyId: target.property_id, propertyTitle: target.property_title, buyerName: target.buyer_name,
-        amount: target.amount, action: 'accepted', agentName: currentSession?.full_name || currentSession?.username || 'Demo Agent',
+      const rows = isRent ? await getRentalApplicationsReceived() : await getOffersReceived();
+      setDeals(rows.filter((r) => r.property_id === selectedPropId));
+    } catch (failure) {
+      setDeals([]);
+      setMessage({ kind: 'error', text: failure.message });
+    }
+  }, [selectedPropId, isRent]);
+
+  const openDeals = () => {
+    setDeals(null);
+    setMessage(null);
+    setViewMode('offers');
+    setTimeout(loadDeals, 0);
+  };
+
+  const decideDeal = async (deal, accept) => {
+    setDealBusy(deal.id);
+    setMessage(null);
+    try {
+      if (isRent) await decideRentalApplication(deal.id, accept);
+      else if (accept) await acceptOffer(deal.id);
+      else await rejectOffer(deal.id);
+      setMessage({
+        kind: 'success',
+        text: accept
+          ? `${deal.buyer_name} accepted: other pending ${isRent ? 'applications' : 'offers'} rejected, listing now Under Offer.`
+          : `${deal.buyer_name} rejected.`,
       });
-    } catch {
-      // ignore
+    } catch (failure) {
+      setMessage({ kind: 'error', text: `Decision refused: ${failure.message}` });
+    } finally {
+      setDealBusy(null);
+      await loadDeals();
+      await loadProperties();
+      if (selectedProp) await loadHistory(selectedProp.id);
     }
-    setMessage({ kind: 'success', text: `Offer accepted: "${target.property_title}" moved to Under Offer; competing offers rejected.` });
   };
-
-  const handleRejectOffer = async (offerId) => {
-    const target = offers.find((o) => o.id === offerId);
-    setOffers((prev) => (prev || []).map((o) => (o.id === offerId ? { ...o, status: 'rejected' } : o)));
-    if (target) {
-      try {
-        await notifyOfferAction({
-          propertyId: target.property_id, propertyTitle: target.property_title, buyerName: target.buyer_name,
-          amount: target.amount, action: 'rejected', agentName: currentSession?.full_name || currentSession?.username || 'Demo Agent',
-        });
-      } catch {
-        // ignore
-      }
-    }
-    setMessage({ kind: 'success', text: 'Offer rejected.' });
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -294,7 +302,7 @@ export default function PropertyLifecycleScreen({
                   >
                     <Text style={styles.secondaryBtnText}>Edit details</Text>
                   </Pressable>
-                  <Pressable accessibilityRole="button" style={styles.secondaryBtn} onPress={() => setViewMode('offers')}>
+                  <Pressable accessibilityRole="button" style={styles.secondaryBtn} onPress={openDeals}>
                     <Text style={styles.secondaryBtnText}>See offers</Text>
                   </Pressable>
                 </View>
@@ -327,36 +335,44 @@ export default function PropertyLifecycleScreen({
             )}
           </>
         ) : (
-          /* Offers sub-view when tapping "See offers" */
+          /* Offers sub-view when tapping "See offers": real data for the selected listing */
           <>
-            <Text style={styles.sectionLabel}>Received offers &amp; applications</Text>
-            {(offers || []).map((offer) => (
-              <View key={offer.id} style={styles.offerCard}>
+            <Text style={styles.sectionLabel}>
+              {isRent ? 'Rental applications' : 'Offers'} · {selectedProp?.title}
+            </Text>
+            {deals === null && <ActivityIndicator color="#B6331E" accessibilityLabel="Loading offers" />}
+            {deals?.length === 0 && (
+              <Text style={styles.noteText}>No {isRent ? 'rental applications' : 'offers'} on this listing yet.</Text>
+            )}
+            {deals?.map((deal) => (
+              <View key={deal.id} style={styles.offerCard}>
                 <View style={styles.statusRow}>
-                  <Text style={styles.offerBuyer}>{offer.buyer_name}</Text>
+                  <Text style={styles.offerBuyer}>{deal.buyer_name}</Text>
                   <View style={styles.pill}>
-                    <Text style={styles.pillText}>
-                      {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
-                    </Text>
+                    <Text style={styles.pillText}>{deal.status.charAt(0).toUpperCase() + deal.status.slice(1)}</Text>
                   </View>
                 </View>
                 <Text style={styles.offerMeta}>
-                  £{Number(offer.amount).toLocaleString('en-GB')} · {offer.date} · {offer.property_title}
+                  {isRent
+                    ? `Move-in ${formatMoveIn(deal.move_in_date)}${deal.notes ? ` · “${deal.notes}”` : ''}`
+                    : `£${Number(deal.amount).toLocaleString('en-GB')} · ${new Date(deal.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
                 </Text>
 
-                {offer.status === 'pending' && (
+                {deal.status === 'pending' && selectedProp?.status === 'active' && (
                   <View style={styles.secondaryRow}>
                     <Pressable
                       accessibilityRole="button"
+                      disabled={!!dealBusy}
                       style={[styles.primaryBtn, { flex: 1, height: 44 }]}
-                      onPress={() => handleAcceptOffer(offer.id)}
+                      onPress={() => decideDeal(deal, true)}
                     >
-                      <Text style={styles.primaryBtnText}>Accept</Text>
+                      {dealBusy === deal.id ? <ActivityIndicator color="#F6F5F0" /> : <Text style={styles.primaryBtnText}>Accept</Text>}
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
+                      disabled={!!dealBusy}
                       style={[styles.secondaryBtn, { height: 44 }]}
-                      onPress={() => handleRejectOffer(offer.id)}
+                      onPress={() => decideDeal(deal, false)}
                     >
                       <Text style={styles.secondaryBtnText}>Reject</Text>
                     </Pressable>
@@ -368,16 +384,14 @@ export default function PropertyLifecycleScreen({
                     style={styles.chatLink}
                     onPress={async () => {
                       const conv = await startOrFindConversation({
-                        propertyId: offer.property_id,
-                        propertyTitle: offer.property_title,
-                        channelType: 'agent_buyer',
-                        buyerName: offer.buyer_name,
-                        agentName: currentSession?.full_name || 'Demo Agent',
+                        property: selectedProp,
+                        userRole: role,
+                        userName: currentSession?.full_name || currentSession?.username,
                       });
                       onOpenChat(conv.id);
                     }}
                   >
-                    <Text style={styles.chatLinkText}>Message {offer.buyer_name} →</Text>
+                    <Text style={styles.chatLinkText}>Message about this listing →</Text>
                   </Pressable>
                 )}
               </View>

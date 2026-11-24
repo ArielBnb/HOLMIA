@@ -335,7 +335,8 @@ function CatalogScreen({ onSelectProperty }) {
   }, []);
 
   useEffect(() => {
-    loadProperties();
+    const first = setTimeout(loadProperties, 0);
+    return () => clearTimeout(first);
   }, [loadProperties]);
 
   const filtered = items.filter((p) => {

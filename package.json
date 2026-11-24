@@ -24,6 +24,7 @@
     "test:repositories": "node --experimental-strip-types src/tests/testRepositories.ts",
     "test:session": "node --experimental-strip-types src/tests/testSessionAndAccess.ts",
     "test:seller-form": "node src/tests/testSellerPropertyForm.mjs",
+    "test:catalogue:supabase": "node --env-file=.env --test tests/buyer-catalogue.mjs",
     "test:seller-form:supabase": "node --env-file=.env scripts/test-seller-form.mjs",
     "test:seller-edit": "node src/tests/testSellerEditRules.mjs && node --experimental-strip-types src/tests/testSellerEditDelete.ts",
     "test:offers": "node --experimental-strip-types src/tests/testOfferDecisions.ts",

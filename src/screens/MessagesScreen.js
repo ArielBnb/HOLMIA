@@ -43,7 +43,7 @@ export default function MessagesScreen({ currentSession, initialConversationId }
   };
 
   useEffect(() => {
-    fetchConversations();
+    const first = setTimeout(fetchConversations, 0);
     const interval = setInterval(fetchConversations, 2500);
 
     const unsubscribe = subscribeToRealtimeMessages((remoteMsg) => {
@@ -72,6 +72,7 @@ export default function MessagesScreen({ currentSession, initialConversationId }
     });
 
     return () => {
+      clearTimeout(first);
       clearInterval(interval);
       if (unsubscribe) unsubscribe();
     };

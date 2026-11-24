@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -13,6 +13,7 @@ import {
 import { updateProperty, createProperty } from '../services/propertyService';
 import { contactAgentForTerms } from '../services/chatService';
 import { authColors as colors } from '../styles/authTheme';
+import { getSupabase } from '../config/supabase';
 
 export default function AgentModerationScreen({
   property: initialProperty,
@@ -47,6 +48,22 @@ export default function AgentModerationScreen({
   const [agentModel, setAgentModel] = useState(prop.agent_id ? 'agent' : 'none'); // 'none' (direct) | 'agent'
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
+  const [agents, setAgents] = useState([]);
+
+  // Real Agent accounts (public.list_agents). Never a hard-coded ID: Supabase
+  // rejects an agent_id that is not an Agent profile.
+  useEffect(() => {
+    let cancelled = false;
+    const first = setTimeout(async () => {
+      try {
+        const { data, error } = await getSupabase().rpc('list_agents');
+        if (!cancelled && !error) setAgents(data ?? []);
+      } catch {
+        // Without agents, "Assign an Agent" reports a clear error on save.
+      }
+    }, 0);
+    return () => { cancelled = true; clearTimeout(first); };
+  }, []);
 
   // Agent cannot create properties (Seller feature only)
   if (userRole === 'agent' && !initialProperty) {
@@ -77,105 +94,58 @@ export default function AgentModerationScreen({
 
   const isTerminal = ['sold', 'rented'].includes(status);
   const isCommercialLocked = ['under_offer', 'sold', 'rented'].includes(status);
+  // Former name still used by the representation toggle and the action bar.
+  const isLocked = isCommercialLocked;
 
   const getAgentIdValue = () => {
     if (agentModel === 'none') return null;
-    return prop.agent_id || 'a0000000-0000-4000-8000-000000000002'; // Demo agent ID
+    return prop.agent_id || agents[0]?.id || null;
   };
 
-  const handleSave = async () => {
+  // One save path for "Save", "Save draft" and "Publish": creates the listing
+  // when it does not exist yet, otherwise updates it. Supabase has the last word
+  // (RLS, transitions, locks); its error is shown and nothing is reported as saved.
+  const persist = async (targetStatus, pending, success) => {
     if (busy || isTerminal) return;
-    setBusy(true);
-    setFeedback('Saving modifications...');
-    const changes = {
-      title: title.trim(),
-      description: description.trim(),
-      price: parseFloat(price) || 0,
-      location: location.trim(),
-      listing_type: listingType,
-      property_type: propertyType,
-      agent_id: getAgentIdValue(),
-      status: prop.status || status || 'active',
-    };
-    try {
-      if (prop.id) {
-        await updateProperty(prop.id, changes);
-      }
-      setFeedback('✅ Modifications saved successfully!');
-      setTimeout(() => {
-        if (onSaved) onSaved({ ...prop, ...changes });
-      }, 600);
-    } catch (err) {
-      setFeedback(`Modifications saved (${err.message})`);
-      if (onSaved) onSaved({ ...prop, ...changes });
-    } finally {
-      setBusy(false);
+    const amount = Number(String(price).replace(/[\s,]/g, ''));
+    if (!title.trim() || !location.trim() || !(amount > 0)) {
+      setFeedback('❌ Please fill in a title, a location and a price greater than 0.');
+      return;
     }
-  };
-
-  const handleSaveDraft = async () => {
-    if (busy) return;
-    setBusy(true);
-    setFeedback('Saving draft...');
-    const changes = {
-      title: title.trim(),
-      description: description.trim(),
-      price: parseFloat(price) || 0,
-      location: location.trim(),
-      listing_type: listingType,
-      property_type: propertyType,
-      agent_id: getAgentIdValue(),
-      status: 'draft',
-    };
-    try {
-      if (prop.id) {
-        await updateProperty(prop.id, changes);
-      }
-      setStatus('draft');
-      setFeedback('✅ Draft saved (Live in Supabase)!');
-      if (onSaved) onSaved({ ...prop, ...changes });
-    } catch (err) {
-      setStatus('draft');
-      setFeedback(`Draft saved locally (${err.message})`);
-      if (onSaved) onSaved({ ...prop, ...changes });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handlePublish = async () => {
-    if (busy) return;
-    if (!title.trim() || !price.trim() || !location.trim()) {
-      setFeedback('Please fill in title, price, and location.');
+    const agentId = getAgentIdValue();
+    if (agentModel === 'agent' && !agentId) {
+      setFeedback('❌ No agent account is available. Choose "Direct (No Agent)" or try again later.');
       return;
     }
     setBusy(true);
-    setFeedback('Publishing listing...');
+    setFeedback(pending);
     const changes = {
       title: title.trim(),
       description: description.trim(),
-      price: parseFloat(price) || 0,
+      price: amount,
       location: location.trim(),
       listing_type: listingType,
       property_type: propertyType,
-      agent_id: getAgentIdValue(),
-      status: 'active',
+      agent_id: agentId,
     };
+    if (targetStatus !== prop.status) changes.status = targetStatus;
     try {
-      if (prop.id && prop.id.includes('-')) {
-        await updateProperty(prop.id, changes);
-      }
-      setStatus('active');
-      setFeedback('✅ Listing published live! Visible to all Buyers.');
-      if (onSaved) onSaved({ ...prop, ...changes });
+      const saved = prop.id
+        ? await updateProperty(prop.id, changes)
+        : await createProperty({ ...changes, seller_id: currentSession?.id, status: targetStatus });
+      setStatus(saved.status);
+      setFeedback(success);
+      if (onSaved) setTimeout(() => onSaved(saved), 600);
     } catch (err) {
-      setStatus('active');
-      setFeedback(`Published locally (${err.message})`);
-      if (onSaved) onSaved({ ...prop, ...changes });
+      setFeedback(`❌ Not saved: ${err.message}`);
     } finally {
       setBusy(false);
     }
   };
+
+  const handleSave = () => persist(prop.status || status, 'Saving modifications...', '✅ Modifications saved.');
+  const handleSaveDraft = () => persist('draft', 'Saving draft...', '✅ Draft saved.');
+  const handlePublish = () => persist('active', 'Publishing listing...', '✅ Listing published. Visible to all Buyers.');
 
   return (
     <SafeAreaView style={styles.container}>
