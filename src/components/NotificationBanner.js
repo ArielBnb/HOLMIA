@@ -30,8 +30,12 @@ export default function NotificationBanner({ notification, onPress, onDismiss })
       }),
     ]).start();
 
+    let cancelled = false;
+    let hideAnim = null;
+
     const timer = setTimeout(() => {
-      Animated.parallel([
+      if (cancelled) return;
+      hideAnim = Animated.parallel([
         Animated.timing(translateY, {
           toValue: -110,
           duration: 200,
@@ -42,12 +46,17 @@ export default function NotificationBanner({ notification, onPress, onDismiss })
           duration: 180,
           useNativeDriver: false,
         }),
-      ]).start(() => {
-        onDismiss?.();
+      ]);
+      hideAnim.start(({ finished }) => {
+        if (finished && !cancelled) onDismiss?.();
       });
     }, 5200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      hideAnim?.stop();
+    };
   }, [notification, onDismiss, opacity, translateY]);
 
   if (!notification) return null;

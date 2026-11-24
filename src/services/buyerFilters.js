@@ -47,16 +47,21 @@ export function applyBuyerFilters(
   if (filters.maxPrice.trim())
     query = query.lte("price", Number(filters.maxPrice));
   if (filters.propertyTypes.length) {
-    const known = ["house", "flat", "studio"];
+    const known = ["house", "flat", "studio", "loft", "villa", "land", "office"];
     const parts = filters.propertyTypes
+      .map((x) => String(x || "").toLowerCase())
       .filter((x) => known.includes(x))
       .map((x) => `property_type.eq.${x}`);
     if (filters.propertyTypes.includes("other"))
       parts.push("property_type.not.in.(house,flat,studio)");
-    query = query.or(parts.join(","));
+    if (parts.length) query = query.or(parts.join(","));
   }
   return query;
 }
 export function formatPrice(property) {
-  return `£${Number(property.price).toLocaleString("en-GB", { maximumFractionDigits: 2 })}${property.listing_type === "rent" ? " / month" : ""}`;
+  const num = Number(property?.price);
+  const formatted = Number.isFinite(num)
+    ? num.toLocaleString("en-GB", { maximumFractionDigits: 2 })
+    : "0";
+  return `£${formatted}${property?.listing_type === "rent" ? " / month" : ""}`;
 }

@@ -131,6 +131,15 @@ export class UserRepository {
       if (!validRoles.includes(changes.role)) {
         throw new Error(`Invalid role '${changes.role}'`);
       }
+      if (changes.role !== existing.role) {
+        const hasProps = this.db.get<{ count: number }>(
+          `SELECT count(*) as count FROM properties WHERE seller_id = ? OR agent_id = ?`,
+          [id, id]
+        );
+        if (hasProps && hasProps.count > 0) {
+          throw new Error(`Cannot change role of user '${id}': user is associated with ${hasProps.count} properties`);
+        }
+      }
       updates.push('role = ?');
       values.push(changes.role);
     }

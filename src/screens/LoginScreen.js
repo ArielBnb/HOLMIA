@@ -20,8 +20,8 @@ export default function LoginScreen({ onRegister }) {
   return <KeyboardAvoidingView style={s.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.scroll, styles.content]}>
       <HolmiaLogo />
-      <Text style={styles.title}>City Estate</Text>
-      <Text style={styles.subtitle}>buyers &amp; sellers</Text>
+      <Text style={styles.title}>HOLMIA</Text>
+      <Text style={styles.subtitle}>buyers, sellers &amp; agents</Text>
       <View style={styles.form}>
         <AuthInput label="Username or Email" value={identifier} onChangeText={setIdentifier} autoComplete="username" textContentType="username" autoCapitalize="none" editable={!busy} maxLength={80} />
         <AuthInput label="Password" password value={password} onChangeText={setPassword} autoComplete="current-password" textContentType="password" editable={!busy} maxLength={128} returnKeyType="go" onSubmitEditing={submit} />

@@ -60,14 +60,15 @@ export default function BuyerNavigator({ tab, onTab }) {
   useEffect(() => {
     const listener = BackHandler.addEventListener('hardwareBackPress', () => {
       if (enquiry) setEnquiry(null);
-      else if (submission) return true;
+      else if (viewing) setViewing(null);
+      else if (submission) setSubmission(null);
       else if (page) setPage(null);
       else if (tab !== 'Browse') onTab('Browse');
       else return false;
       return true;
     });
     return () => listener.remove();
-  }, [enquiry, submission, page, tab, onTab]);
+  }, [enquiry, viewing, submission, page, tab, onTab]);
 
   function open(id) {
     setPropertyId(id);
@@ -85,7 +86,8 @@ export default function BuyerNavigator({ tab, onTab }) {
       <View style={[s.page, (page || tab !== 'Browse') && { display: 'none' }]}>
         <BrowseScreen filters={filters} search={search} onSearch={setSearch} quickType={quickType}
           onQuickType={setQuickType} onFilters={() => setPage('filters')} onOpen={open}
-          onFavourite={toggle} favouriteIds={ids} favouriteBusy={busy} favouritesReady={!!rows && !busy.size} />
+          onFavourite={toggle} favouriteIds={ids} favouriteBusy={busy} favouritesReady={!!rows && !busy.size}
+          isActive={!page && tab === 'Browse'} />
       </View>
       {!page && tab === 'Favourites' && (
         <FavouritesScreen rows={rows} loading={!rows && !error} onOpen={open} onRemove={toggle} busy={busy} />

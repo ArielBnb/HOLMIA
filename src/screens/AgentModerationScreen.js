@@ -12,8 +12,14 @@ import {
 } from 'react-native';
 import { updateProperty, createProperty } from '../services/propertyService';
 import { contactAgentForTerms } from '../services/chatService';
-import { authColors as colors } from '../styles/authTheme';
 import { getSupabase } from '../config/supabase';
+
+const MODERATION_PROPERTY_TYPES = [
+  { value: 'flat', label: 'Flat' },
+  { value: 'house', label: 'House' },
+  { value: 'studio', label: 'Studio' },
+  { value: 'loft', label: 'Loft' },
+];
 
 export default function AgentModerationScreen({
   property: initialProperty,
@@ -31,7 +37,7 @@ export default function AgentModerationScreen({
     price: '',
     location: '',
     listing_type: 'sale',
-    property_type: 'Flat',
+    property_type: 'flat',
     status: 'draft',
     agent_id: null, // default direct
   };
@@ -43,7 +49,9 @@ export default function AgentModerationScreen({
   const [price, setPrice] = useState(String(prop.price || ''));
   const [location, setLocation] = useState(prop.location || '');
   const [listingType, setListingType] = useState(prop.listing_type || 'sale');
-  const [propertyType, setPropertyType] = useState(prop.property_type || 'Flat');
+  const [propertyType, setPropertyType] = useState(
+    String(prop.property_type || 'flat').toLowerCase()
+  );
   const [status, setStatus] = useState(prop.status || 'draft');
   const [agentModel, setAgentModel] = useState(prop.agent_id ? 'agent' : 'none'); // 'none' (direct) | 'agent'
   const [feedback, setFeedback] = useState('');
@@ -125,7 +133,7 @@ export default function AgentModerationScreen({
       price: amount,
       location: location.trim(),
       listing_type: listingType,
-      property_type: propertyType,
+      property_type: String(propertyType || 'flat').toLowerCase(),
       agent_id: agentId,
     };
     if (targetStatus !== prop.status) changes.status = targetStatus;
@@ -247,15 +255,15 @@ export default function AgentModerationScreen({
 
           {/* Property Type Dropdown / Picker */}
           <View style={styles.typeSelectorRow}>
-            {['Flat', 'House', 'Studio', 'Loft'].map((t) => (
+            {MODERATION_PROPERTY_TYPES.map((t) => (
               <Pressable
-                key={t}
-                style={[styles.typePill, propertyType === t && styles.typePillActive]}
-                onPress={() => !isCommercialLocked && setPropertyType(t)}
+                key={t.value}
+                style={[styles.typePill, propertyType === t.value && styles.typePillActive]}
+                onPress={() => !isCommercialLocked && setPropertyType(t.value)}
                 disabled={isCommercialLocked}
               >
-                <Text style={[styles.typePillText, propertyType === t && styles.typePillTextActive]}>
-                  {t}
+                <Text style={[styles.typePillText, propertyType === t.value && styles.typePillTextActive]}>
+                  {t.label}
                 </Text>
               </Pressable>
             ))}
@@ -305,11 +313,15 @@ export default function AgentModerationScreen({
               <Pressable
                 style={styles.consultAgentBtn}
                 onPress={async () => {
-                  const conv = await contactAgentForTerms({
-                    property: { id: prop.id, title: title || 'New Property', seller_id: prop.seller_id },
-                    sellerName: currentSession?.full_name || currentSession?.username || 'Seller',
-                  });
-                  if (onOpenChat) onOpenChat(conv.id);
+                  try {
+                    const conv = await contactAgentForTerms({
+                      property: { id: prop.id, title: title || 'New Property', seller_id: prop.seller_id },
+                      sellerName: currentSession?.full_name || currentSession?.username || 'Seller',
+                    });
+                    if (onOpenChat && conv?.id) onOpenChat(conv.id);
+                  } catch (err) {
+                    setFeedback(`❌ Could not open chat: ${err?.message || 'Try again.'}`);
+                  }
                 }}
               >
                 <Text style={styles.consultAgentBtnText}>
@@ -340,7 +352,7 @@ export default function AgentModerationScreen({
             <Text
               style={[
                 styles.feedbackText,
-                feedback.includes('!') ? styles.successText : styles.infoText,
+                feedback.startsWith('✅') ? styles.successText : styles.infoText,
               ]}
             >
               {feedback}

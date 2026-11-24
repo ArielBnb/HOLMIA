@@ -52,7 +52,7 @@ function describeError(failure) {
 
 function formatPrice(item) {
   const amount = Number(item.price).toLocaleString('en-GB', { maximumFractionDigits: 2 });
-  return `€${amount}${item.listing_type === 'rent' ? ' / month' : ''}`;
+  return `£${amount}${item.listing_type === 'rent' ? ' / month' : ''}`;
 }
 
 function Field({ label, error, hint, children }) {
@@ -480,7 +480,7 @@ export default function SellerPropertyFormScreen() {
                   <ChoiceGroup options={LISTING_TYPES} value={values.listingType} onChange={update('listingType')} invalid={!!errors.listingType} disabled={termsLocked} />
                 </Field>
 
-                <Field label={isRent ? 'Monthly rent (€) *' : 'Price (€) *'} error={errors.price} hint={lockHint}>
+                <Field label={isRent ? 'Monthly rent (£) *' : 'Price (£) *'} error={errors.price} hint={lockHint}>
                   <TextInput
                     style={[styles.input, errors.price && styles.inputInvalid, termsLocked && styles.inputLocked]}
                     value={values.price}
@@ -521,7 +521,7 @@ export default function SellerPropertyFormScreen() {
                     style={[styles.input, errors.location && styles.inputInvalid]}
                     value={values.location}
                     onChangeText={update('location')}
-                    placeholder="e.g. Lyon, France"
+                    placeholder="e.g. London, UK"
                     maxLength={LIMITS.locationMax}
                   />
                 </Field>

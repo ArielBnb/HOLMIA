@@ -65,14 +65,18 @@ export async function changePropertyStatus(propertyId, status, note) {
 
     const problem = transitionError(current.status, status, current.listing_type);
     if (problem) throw new Error(problem);
+    if (status === 'under_offer') {
+      throw new Error('A listing moves to Under Offer only when an offer or rental application is accepted.');
+    }
 
     const { data: updated, error: updErr } = await client
       .from('properties')
       .update({ status })
       .eq('id', propertyId)
+      .eq('status', current.status)
       .select(fields);
     if (updErr) throw new Error(updErr.message || 'Unable to update status.');
-    if (!updated?.length) throw new Error('Listing not found, or you are not allowed to change it.');
+    if (!updated?.length) throw new Error('Listing status changed concurrently, or you are not allowed to update it.');
 
     let actorName = 'Assigned user';
     let actorRole = 'agent';
@@ -100,6 +104,7 @@ export async function changePropertyStatus(propertyId, status, note) {
       new_status: status,
       changed_by_name: actorName,
       changed_by_role: actorRole,
+      note: note?.trim() || null,
       notes: note?.trim() || null,
       changed_at: new Date().toISOString(),
     });

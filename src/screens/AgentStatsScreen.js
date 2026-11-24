@@ -54,8 +54,10 @@ export default function AgentStatsScreen({ currentSession }) {
         ? (all ?? []).filter((p) => p.agent_id === me)
         : (all ?? []).filter((p) => p.agent_id !== null && p.agent_id !== undefined);
       const active = mine.filter((p) => p.status === 'active');
-      const avg = active.length
-        ? Math.round(active.reduce((sum, p) => sum + (Number(p.price) || 0), 0) / active.length)
+      const activeSales = active.filter((p) => p.listing_type === 'sale');
+      const pricePool = activeSales.length > 0 ? activeSales : active;
+      const avg = pricePool.length
+        ? Math.round(pricePool.reduce((sum, p) => sum + (Number(p.price) || 0), 0) / pricePool.length)
         : 0;
 
       const bySeller = {};

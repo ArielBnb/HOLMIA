@@ -11,6 +11,10 @@ const VIEWING_TAG = '[Viewing Request]';
 const CONFIRMED_TAG = '[Viewing Confirmed]';
 const DECLINED_TAG = '[Viewing Declined]';
 
+export function isViewingEnquiry(row) {
+  return String(row?.message || '').startsWith(VIEWING_TAG);
+}
+
 function encodeViewingMessage(date, time, location) {
   return `${VIEWING_TAG} ${date} at ${time}${location ? ` (${location})` : ''}`;
 }
@@ -25,7 +29,6 @@ function parseViewingFromEnquiry(row) {
   const reply = row.reply || '';
   if (reply.startsWith(CONFIRMED_TAG)) status = 'confirmed';
   else if (reply.startsWith(DECLINED_TAG)) status = 'declined';
-  else if (reply.trim().length > 0) status = 'confirmed';
 
   return {
     id: row.id,
@@ -72,11 +75,22 @@ export function formatLocalISO(date) {
 
 export async function requestViewing({ property, date, time, buyerId, buyerName }) {
   if (!property?.id) throw new Error('Property is required.');
-  if (!date) throw new Error('Please pick a viewing date.');
+  if (property.status && property.status !== 'active') {
+    throw new Error('Viewings can only be requested on active listings.');
+  }
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Please pick a valid viewing date.');
   if (!VIEWING_SLOTS.includes(time)) throw new Error('Please pick a valid time slot.');
 
-  const today = formatLocalISO(new Date());
+  const now = new Date();
+  const today = formatLocalISO(now);
   if (date < today) throw new Error('Viewing date must be today or later.');
+  if (date === today) {
+    const [slotH, slotM] = time.split(':').map(Number);
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    if (slotH * 60 + slotM <= nowMinutes) {
+      throw new Error(`The ${time} slot for today has already passed. Pick a later slot or another date.`);
+    }
+  }
 
   let resolvedBuyerId = buyerId || null;
   const resolvedBuyerName = buyerName || 'Demo Buyer';
@@ -88,6 +102,10 @@ export async function requestViewing({ property, date, time, buyerId, buyerName 
     } catch {
       // keep fallback
     }
+  }
+
+  if (resolvedBuyerId && property.seller_id && resolvedBuyerId === property.seller_id) {
+    throw new Error('You cannot book a viewing on your own listing.');
   }
 
   // Prevent the same Buyer from booking two viewings at the exact same date & time
@@ -191,10 +209,10 @@ export async function getViewingsForRole(role, userId) {
 
   const localAll = await readStore();
   const localScoped = localAll.filter((v) => {
-    if (role === 'buyer') return !userId || !v.buyer_id || v.buyer_id === userId;
-    if (role === 'seller') return !userId || !v.seller_id || v.seller_id === userId;
-    if (role === 'agent') return !userId || !v.agent_id || v.agent_id === userId;
-    return true;
+    if (role === 'buyer') return userId ? v.buyer_id === userId : true;
+    if (role === 'seller') return userId ? v.seller_id === userId : true;
+    if (role === 'agent') return Boolean(v.agent_id) && (userId ? v.agent_id === userId : true);
+    return false;
   });
 
   // Merge remote Supabase viewings (source of truth) with any local-only records
@@ -212,6 +230,15 @@ export async function getViewingsForRole(role, userId) {
 export async function decideViewing(viewing, decision) {
   if (!['confirmed', 'declined'].includes(decision)) {
     throw new Error('Decision must be confirmed or declined.');
+  }
+  if (typeof viewing === 'object' && viewing?.status && viewing.status !== 'pending') {
+    throw new Error('This viewing request has already been decided.');
+  }
+  if (decision === 'confirmed' && typeof viewing === 'object' && viewing?.date) {
+    const today = formatLocalISO(new Date());
+    if (viewing.date < today) {
+      throw new Error('Cannot confirm a viewing scheduled in the past.');
+    }
   }
 
   const id = typeof viewing === 'string' ? viewing : viewing.id;

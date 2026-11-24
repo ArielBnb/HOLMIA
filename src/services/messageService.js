@@ -5,6 +5,13 @@ import { getSupabase } from '../config/supabase';
 
 export const MESSAGE_MAX = 2000;
 const fields = 'id,property_id,sender_id,recipient_id,body,created_at,read_at';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function assertUuid(value, label) {
+  if (!UUID_RE.test(String(value ?? ''))) {
+    throw new Error(`Invalid ${label} identifier.`);
+  }
+}
 
 export async function listAgents() {
   const { data, error } = await getSupabase().rpc('list_agents');
@@ -18,15 +25,18 @@ export async function getMyConversations() {
   return data ?? [];
 }
 
-// Both directions of one conversation, oldest first.
+// Both directions of one conversation, latest 200 rendered oldest first.
 export async function getThread(propertyId, meId, otherId) {
+  assertUuid(propertyId, 'property');
+  assertUuid(meId, 'sender');
+  assertUuid(otherId, 'recipient');
   const { data, error } = await getSupabase().from('property_messages').select(fields)
     .eq('property_id', propertyId)
     .or(`and(sender_id.eq.${meId},recipient_id.eq.${otherId}),and(sender_id.eq.${otherId},recipient_id.eq.${meId})`)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(200);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).reverse();
 }
 
 export async function sendPropertyMessage(propertyId, recipientId, body) {

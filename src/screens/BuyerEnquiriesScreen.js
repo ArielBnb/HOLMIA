@@ -5,6 +5,7 @@ import { randomUUID } from '../utils/uuid';
 import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getProperties } from '../services/propertyService';
 import { getMyEnquiries, sendEnquiry } from '../services/enquiryService';
+import { isViewingEnquiry } from '../services/viewingService';
 import { ENQUIRY_MAX, ENQUIRY_STATUS, enquiryStatus } from '../services/enquiryRules';
 import { colors } from '../styles/theme';
 
@@ -27,7 +28,7 @@ export default function BuyerEnquiriesScreen() {
   const load = useCallback(async () => {
     try {
       const [mine, active] = await Promise.all([getMyEnquiries(), getProperties({ activeOnly: true })]);
-      setEnquiries(mine);
+      setEnquiries((mine ?? []).filter((e) => !isViewingEnquiry(e)));
       setListings(active);
       setError('');
     } catch (failure) {

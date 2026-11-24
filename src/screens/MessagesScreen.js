@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -27,26 +27,37 @@ export default function MessagesScreen({ currentSession, initialConversationId }
   const [sending, setSending] = useState(false);
   const scrollViewRef = useRef(null);
 
-  const fetchConversations = async () => {
-    const list = await getConversationsForRole(role, currentSession?.id);
-    setConversations(list || []);
-    setActiveConv((currentActive) => {
-      if (!currentActive) {
-        if (initialConversationId) {
-          return (list || []).find((c) => c.id === initialConversationId) || null;
+  const userId = currentSession?.id;
+
+  const fetchConversations = useCallback(async () => {
+    try {
+      const list = await getConversationsForRole(role, userId);
+      setConversations(list || []);
+      setActiveConv((currentActive) => {
+        if (!currentActive) {
+          if (initialConversationId) {
+            return (list || []).find((c) => c.id === initialConversationId) || null;
+          }
+          return null;
         }
-        return null;
-      }
-      const updated = (list || []).find((c) => c.id === currentActive.id);
-      return updated || currentActive;
-    });
-  };
+        const updated = (list || []).find((c) => c.id === currentActive.id);
+        return updated || currentActive;
+      });
+    } catch {
+      // Keep current conversations on transient network error
+    }
+  }, [role, userId, initialConversationId]);
 
   useEffect(() => {
-    const first = setTimeout(fetchConversations, 0);
-    const interval = setInterval(fetchConversations, 2500);
+    let alive = true;
+    const run = async () => {
+      if (alive) await fetchConversations();
+    };
+    const first = setTimeout(run, 0);
+    const interval = setInterval(run, 2500);
 
     const unsubscribe = subscribeToRealtimeMessages((remoteMsg) => {
+      if (!alive) return;
       setActiveConv((currentActive) => {
         if (!currentActive || currentActive.id !== remoteMsg.conversation_id) return currentActive;
         const exists = (currentActive.messages || []).some((m) => m.id === remoteMsg.id);
@@ -68,15 +79,16 @@ export default function MessagesScreen({ currentSession, initialConversationId }
           ],
         };
       });
-      fetchConversations();
+      run();
     });
 
     return () => {
+      alive = false;
       clearTimeout(first);
       clearInterval(interval);
       if (unsubscribe) unsubscribe();
     };
-  }, [role, initialConversationId]);
+  }, [fetchConversations]);
 
   const handleSendInThread = async () => {
     if (!inputText.trim() || !activeConv || sending) return;

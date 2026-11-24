@@ -4,11 +4,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getEnquiriesReceived, replyToEnquiry } from '../services/enquiryService';
+import { isViewingEnquiry } from '../services/viewingService';
 import { ENQUIRY_MAX, ENQUIRY_STATUS, countByStatus, enquiryStatus, filterEnquiries } from '../services/enquiryRules';
 import { colors } from '../styles/theme';
 
-const border = '#DBE1DC';
-const danger = '#B3261E';
 const when = (iso) => new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 function EnquiryCard({ item, onSaved }) {
@@ -90,7 +89,8 @@ export default function EnquiriesReceivedScreen({ role }) {
 
   const load = useCallback(async () => {
     try {
-      setRows(await getEnquiriesReceived());
+      const received = await getEnquiriesReceived();
+      setRows((received ?? []).filter((e) => !isViewingEnquiry(e)));
       setError('');
     } catch (failure) {
       setError(failure.message);

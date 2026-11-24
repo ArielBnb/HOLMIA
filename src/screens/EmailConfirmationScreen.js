@@ -11,7 +11,7 @@ export default function EmailConfirmationScreen({ registration, onBack, onLogin,
     if (busy) return;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Enter a valid email address.'); return; }
     setBusy(true); setError('');
-    try { await registerAccount({ ...registration, email }); onRegistered(); setSent(true); }
+    try { await registerAccount({ ...registration, email }); onRegistered?.(); setSent(true); }
     catch (failure) { setError(failure.message || 'Unable to create your account.'); }
     finally { setBusy(false); }
   }

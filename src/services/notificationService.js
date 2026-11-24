@@ -52,6 +52,11 @@ export function subscribeToAppNotifications(profile, onNotify) {
   const seenKeys = new Map();
   const dispatch = (dedupeKey, payload) => {
     const now = Date.now();
+    if (seenKeys.size > 200) {
+      for (const [k, ts] of seenKeys.entries()) {
+        if (now - ts >= 60000) seenKeys.delete(k);
+      }
+    }
     const prev = seenKeys.get(dedupeKey);
     if (prev && now - prev < 8000) return;
     seenKeys.set(dedupeKey, now);
@@ -65,43 +70,38 @@ export function subscribeToAppNotifications(profile, onNotify) {
   let disposed = false;
   let channel = null;
 
-  // 1. Supabase Realtime listeners across core marketplace tables
-  if (isSupabaseConfigured && supabase) {
+  // 1. Supabase Realtime listeners strictly scoped to the signed-in user
+  if (isSupabaseConfigured && supabase && userId) {
     try {
       channel = supabase
-        .channel(`holmia_popups_${userId || role}_${Date.now()}`)
+        .channel(`holmia_popups_${userId}_${Date.now()}`)
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'messages' },
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'property_messages',
+            filter: `recipient_id=eq.${userId}`,
+          },
           (payload) => {
             const msg = payload.new;
-            if (!msg || msg.sender_role === role) return;
-            dispatch(`msg-${msg.id}`, {
+            if (!msg || msg.sender_id === userId) return;
+            dispatch(`pmsg-${msg.id}`, {
               badge: 'MESSAGE',
-              title: `New message from ${msg.sender_name || msg.sender_role || 'User'}`,
-              body: msg.text || 'Open to read the message',
-              targetTab: role === 'agent' ? 'enquiries' : 'messages',
-              conversationId: msg.conversation_id || null,
+              title: 'New message received',
+              body: msg.body || 'Open to read the message',
+              targetTab: role === 'agent' ? 'offers' : role === 'seller' ? 'received' : 'messages',
             });
           }
         )
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'offers' },
-          (payload) => {
-            const offer = payload.new;
-            if (!offer || role === 'buyer') return;
-            dispatch(`offer-new-${offer.id}`, {
-              badge: 'OFFER',
-              title: 'New purchase offer received',
-              body: `${formatGBP(offer.amount)} submitted on a managed listing.`,
-              targetTab: role === 'agent' ? 'offers' : 'received',
-            });
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'offers' },
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'offers',
+            filter: `buyer_id=eq.${userId}`,
+          },
           (payload) => {
             const offer = payload.new;
             if (!offer || role !== 'buyer' || offer.buyer_id !== userId) return;
@@ -117,23 +117,12 @@ export function subscribeToAppNotifications(profile, onNotify) {
         )
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'rental_applications' },
-          (payload) => {
-            const app = payload.new;
-            if (!app || role === 'buyer') return;
-            dispatch(`rental-new-${app.id}`, {
-              badge: 'RENTAL',
-              title: 'New rental application received',
-              body: app.move_in_date
-                ? `Requested move-in: ${app.move_in_date}`
-                : 'A buyer applied to rent a listing.',
-              targetTab: role === 'agent' ? 'offers' : 'received',
-            });
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'rental_applications' },
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'rental_applications',
+            filter: `buyer_id=eq.${userId}`,
+          },
           (payload) => {
             const app = payload.new;
             if (!app || role !== 'buyer' || app.buyer_id !== userId) return;
@@ -152,29 +141,21 @@ export function subscribeToAppNotifications(profile, onNotify) {
         )
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'enquiries' },
-          (payload) => {
-            const enq = payload.new;
-            if (!enq || role === 'buyer') return;
-            dispatch(`enq-new-${enq.id}`, {
-              badge: 'ENQUIRY',
-              title: 'New buyer enquiry',
-              body: enq.message || 'Tap to reply.',
-              targetTab: role === 'agent' ? 'offers' : 'received',
-            });
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'enquiries' },
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'enquiries',
+            filter: `buyer_id=eq.${userId}`,
+          },
           (payload) => {
             const enq = payload.new;
             if (!enq || role !== 'buyer' || enq.buyer_id !== userId || !enq.reply) return;
+            const isViewing = String(enq.message || '').startsWith('[Viewing Request]');
             dispatch(`enq-reply-${enq.id}-${enq.replied_at || ''}`, {
-              badge: 'ENQUIRY',
-              title: 'New reply to your enquiry',
+              badge: isViewing ? 'VIEWING' : 'ENQUIRY',
+              title: isViewing ? 'Viewing request updated' : 'New reply to your enquiry',
               body: enq.reply,
-              targetTab: 'enquiries',
+              targetTab: isViewing ? 'buyer_offers' : 'enquiries',
             });
           }
         )
@@ -183,7 +164,7 @@ export function subscribeToAppNotifications(profile, onNotify) {
           { event: 'INSERT', schema: 'public', table: 'properties' },
           (payload) => {
             const prop = payload.new;
-            if (!prop || role !== 'agent' || prop.status !== 'draft') return;
+            if (!prop || role !== 'agent' || prop.status !== 'draft' || prop.agent_id !== userId) return;
             dispatch(`prop-draft-${prop.id}`, {
               badge: 'REVIEW',
               title: 'New draft listing to review',
@@ -199,11 +180,15 @@ export function subscribeToAppNotifications(profile, onNotify) {
             const prop = payload.new;
             const old = payload.old;
             if (!prop || !old || prop.status === old.status) return;
+            const isMine =
+              (role === 'agent' && prop.agent_id === userId) ||
+              (role === 'seller' && prop.seller_id === userId);
+            if (!isMine) return;
             dispatch(`prop-st-${prop.id}-${prop.status}`, {
               badge: 'STATUS',
               title: 'Property status updated',
               body: `${prop.title || 'Listing'} is now ${STATUS_NAMES[prop.status] || prop.status}.`,
-              targetTab: role === 'agent' ? 'properties' : role === 'seller' ? 'listings' : 'listings',
+              targetTab: role === 'agent' ? 'properties' : 'listings',
             });
           }
         )
@@ -213,33 +198,33 @@ export function subscribeToAppNotifications(profile, onNotify) {
     }
   }
 
-  // 2. Lightweight polling fallback (catches events even if Realtime replication isn't enabled on a table)
+  // 2. Lightweight RLS-scoped polling fallback (never leaks across users)
   let initialized = false;
   const knownOffers = new Map();
   const knownEnquiries = new Map();
   const knownMessages = new Set();
 
   const pollChanges = async () => {
-    if (disposed || !isSupabaseConfigured) return;
+    if (disposed || !isSupabaseConfigured || !userId) return;
     try {
       const client = getSupabase();
 
-      // Messages check
+      // Strictly scoped property_messages addressed to the signed-in user
       const { data: msgRows } = await client
-        .from('messages')
-        .select('id, conversation_id, sender_role, sender_name, text')
+        .from('property_messages')
+        .select('id, property_id, sender_id, body')
+        .eq('recipient_id', userId)
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (Array.isArray(msgRows)) {
         for (const m of msgRows) {
-          if (initialized && !knownMessages.has(m.id) && m.sender_role !== role) {
-            dispatch(`msg-${m.id}`, {
+          if (initialized && !knownMessages.has(m.id) && m.sender_id !== userId) {
+            dispatch(`pmsg-${m.id}`, {
               badge: 'MESSAGE',
-              title: `New message from ${m.sender_name || m.sender_role || 'User'}`,
-              body: m.text || 'Open to read the message',
-              targetTab: role === 'agent' ? 'enquiries' : 'messages',
-              conversationId: m.conversation_id || null,
+              title: 'New message received',
+              body: m.body || 'Open to read the message',
+              targetTab: role === 'agent' ? 'offers' : role === 'seller' ? 'received' : 'messages',
             });
           }
           knownMessages.add(m.id);

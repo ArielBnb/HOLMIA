@@ -30,8 +30,8 @@ import BuyerNavigator from './BuyerNavigator';
 import { authStyles as s } from '../styles/authTheme';
 
 function MainHome({ profile }) {
-  const { signOut } = useAuth();
-  const userRole = profile?.role || 'agent';
+  const { session, signOut } = useAuth();
+  const userRole = profile?.role || 'buyer';
 
   // Role-specific initial tab & navigation (Figma 13: Dashboard is Agent home)
   const [activeTab, setActiveTab] = useState(userRole === 'agent' ? 'stats' : 'listings');
@@ -211,6 +211,7 @@ function MainHome({ profile }) {
                   <AgentPortfolioScreen
                     currentSession={profile}
                     onEditProperty={handleEditProperty}
+                    onViewDetails={handleViewDetails}
                     onAddProperty={handleAddProperty}
                     onOpenChat={handleOpenChat}
                   />
@@ -219,15 +220,6 @@ function MainHome({ profile }) {
                 {/* Add Property (Seller only) */}
                 {activeTab === 'add' && userRole === 'seller' && (
                   <SellerPropertyFormScreen />
-                )}
-
-                {/* Wireframe 12: Offers & Property Lifecycle */}
-                {activeTab === 'lifecycle' && (
-                  <PropertyLifecycleScreen
-                    currentSession={profile}
-                    onBack={() => setActiveTab('listings')}
-                    onOpenChat={handleOpenChat}
-                  />
                 )}
 
                 {activeTab === 'received' && userRole === 'seller' && <OffersReceivedScreen currentSession={profile} />}
@@ -257,11 +249,11 @@ function MainHome({ profile }) {
                   <Text style={styles.profileMeta}>
                     Role:{' '}
                     <Text style={{ fontWeight: '700', textTransform: 'capitalize', color: '#B6311E' }}>
-                      {profile.role || 'agent'}
+                      {profile.role || 'buyer'}
                     </Text>
                   </Text>
-                  {profile.email ? (
-                    <Text style={styles.profileMeta}>Email: {profile.email}</Text>
+                  {(profile.email || session?.user?.email) ? (
+                    <Text style={styles.profileMeta}>Email: {profile.email || session?.user?.email}</Text>
                   ) : null}
                   {profile.username ? (
                     <Text style={styles.profileMeta}>Username: {profile.username}</Text>
@@ -401,7 +393,8 @@ export default function AuthNavigator() {
           setRegistration(null);
           setScreen('register');
         }}
-        onComplete={login}
+        onLogin={login}
+        onRegistered={() => setRegistration(null)}
       />
     );
   }

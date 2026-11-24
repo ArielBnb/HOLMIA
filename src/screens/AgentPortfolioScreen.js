@@ -19,12 +19,14 @@ export default function AgentPortfolioScreen({
   onAddProperty,
   onOpenChat,
 }) {
-  const userRole = currentSession?.role || 'agent';
+  const userRole = currentSession?.role || 'buyer';
   const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const loadPortfolio = useCallback(async () => {
     // The query also returns the public catalogue (other owners' active
@@ -48,14 +50,21 @@ export default function AgentPortfolioScreen({
       setProperties(filterByRole(data ?? []).map((p) => ({ ...p, offersCount: counts[p.id] || 0 })));
     } catch {
       // Keep current list on failure
+    } finally {
+      setLoading(false);
     }
   }, [userRole, currentSession?.id]);
 
   useEffect(() => {
-    const first = setTimeout(loadPortfolio, 0);
+    let alive = true;
+    const run = async () => {
+      if (alive) await loadPortfolio();
+    };
+    const first = setTimeout(run, 0);
     // Keep Seller / Agent portfolio synced live when another role approves or updates a listing
-    const interval = setInterval(loadPortfolio, 4000);
+    const interval = setInterval(run, 4000);
     return () => {
+      alive = false;
       clearTimeout(first);
       clearInterval(interval);
     };
@@ -71,13 +80,20 @@ export default function AgentPortfolioScreen({
     setDeleteError('');
     if (['under_offer', 'sold', 'rented'].includes(item.status)) {
       setDeleteError(`Cannot delete "${item.title}": listing is ${statusLabel[item.status] || item.status}.`);
+      setConfirmDeleteId(null);
+      return;
+    }
+    if (confirmDeleteId !== item.id) {
+      setConfirmDeleteId(item.id);
       return;
     }
     try {
       await deleteOwnProperty(item.id);
       setProperties((prev) => prev.filter((p) => p.id !== item.id));
+      setConfirmDeleteId(null);
     } catch (failure) {
       setDeleteError(failure.message || 'Unable to delete this listing.');
+      setConfirmDeleteId(null);
     }
   };
 
@@ -178,43 +194,53 @@ export default function AgentPortfolioScreen({
         ) : null}
 
         {/* Figma 14 Property Cards */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>Loading properties...</Text>
+          </View>
+        ) : filtered.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>No properties match this filter.</Text>
           </View>
         ) : (
           filtered.map((item) => (
-            <Pressable
-              key={item.id}
-              accessibilityRole="button"
-              style={styles.card}
-              onPress={() =>
-                userRole === 'agent'
-                  ? onViewDetails
+            <View key={item.id} style={styles.card}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() =>
+                  onViewDetails
                     ? onViewDetails(item)
                     : onEditProperty?.(item)
-                  : onEditProperty?.(item)
-              }
-            >
-              <View style={styles.cardHeader}>
-                <Text style={styles.propertyName} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <View style={styles.statusPill}>
-                  <Text style={styles.statusPillText}>
-                    {statusLabel[item.status] || item.status}
+                }
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.propertyName} numberOfLines={1}>
+                    {item.title}
                   </Text>
+                  <View style={styles.statusPill}>
+                    <Text style={styles.statusPillText}>
+                      {statusLabel[item.status] || item.status}
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
-              <Text style={styles.propertySubtitle} numberOfLines={1}>
-                {userRole === 'agent'
-                  ? `${item.seller_name || 'Demo Seller'} · ${formatPrice(item)}`
-                  : `${formatPrice(item)} · ${item.listing_type === 'sale' ? 'Sale' : 'Rent'} · ${item.offersCount} offer${item.offersCount !== 1 ? 's' : ''}`}
-              </Text>
+                <Text style={styles.propertySubtitle} numberOfLines={1}>
+                  {userRole === 'agent'
+                    ? `${item.seller_name || item.location || 'UK'} · ${formatPrice(item)}`
+                    : `${formatPrice(item)} · ${item.listing_type === 'sale' ? 'Sale' : 'Rent'} · ${item.offersCount} offer${item.offersCount !== 1 ? 's' : ''}`}
+                </Text>
+              </Pressable>
 
               {userRole === 'seller' && (
                 <View style={styles.inlineActions}>
+                  {onViewDetails && (
+                    <Pressable
+                      style={styles.inlineBtn}
+                      onPress={() => onViewDetails(item)}
+                    >
+                      <Text style={styles.inlineBtnText}>Status</Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     style={styles.inlineBtn}
                     onPress={() => onEditProperty && onEditProperty(item)}
@@ -225,11 +251,21 @@ export default function AgentPortfolioScreen({
                     style={styles.inlineBtn}
                     onPress={() => handleDelete(item)}
                   >
-                    <Text style={[styles.inlineBtnText, { color: '#B6331E' }]}>Delete</Text>
+                    <Text style={[styles.inlineBtnText, { color: '#B6331E' }]}>
+                      {confirmDeleteId === item.id ? 'Confirm delete' : 'Delete'}
+                    </Text>
                   </Pressable>
+                  {confirmDeleteId === item.id && (
+                    <Pressable
+                      style={styles.inlineBtn}
+                      onPress={() => setConfirmDeleteId(null)}
+                    >
+                      <Text style={styles.inlineBtnText}>Cancel</Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
-            </Pressable>
+            </View>
           ))
         )}
       </ScrollView>

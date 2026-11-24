@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -13,32 +14,38 @@ import { getProperties, updateProperty } from '../services/propertyService';
 
 export default function AgentReviewScreen({ currentSession, onEditProperty }) {
   const [drafts, setDrafts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const agentId = currentSession?.id;
 
-  const loadDrafts = async () => {
+  const loadDrafts = useCallback(async () => {
     try {
       const all = await getProperties({ activeOnly: false });
-      if (all && all.length > 0) {
-        // Only drafts assigned to the signed-in agent.
-        const pendingReview = all.filter(
-          (p) => p.status === 'draft' && p.agent_id === currentSession?.id
-        );
-        setDrafts(pendingReview);
-      }
+      const pendingReview = (all ?? []).filter(
+        (p) => p.status === 'draft' && p.agent_id === agentId
+      );
+      setDrafts(pendingReview);
     } catch {
       // Keep state on failure
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [agentId]);
 
   useEffect(() => {
-    const first = setTimeout(loadDrafts, 0);
-    const interval = setInterval(loadDrafts, 5000);
+    let alive = true;
+    const run = async () => {
+      if (alive) await loadDrafts();
+    };
+    const first = setTimeout(run, 0);
+    const interval = setInterval(run, 5000);
     return () => {
+      alive = false;
       clearTimeout(first);
       clearInterval(interval);
     };
-  }, []);
+  }, [loadDrafts]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -56,14 +63,19 @@ export default function AgentReviewScreen({ currentSession, onEditProperty }) {
       return;
     }
     setDrafts((prev) => prev.filter((p) => p.id !== item.id));
-    setFeedback(`"${item.title}" approved and published.`);
-    setTimeout(() => setFeedback(''), 3000);
+    setFeedback(`✅ "${item.title}" approved and published.`);
   };
 
   const handleReject = async (item) => {
+    setFeedback(`Returning "${item.title}" to seller...`);
+    try {
+      await updateProperty(item.id, { agent_id: null });
+    } catch (err) {
+      setFeedback(`❌ Could not reject "${item.title}": ${err.message}`);
+      return;
+    }
     setDrafts((prev) => prev.filter((p) => p.id !== item.id));
-    setFeedback(`"${item.title}" rejected and returned to seller.`);
-    setTimeout(() => setFeedback(''), 3000);
+    setFeedback(`✅ "${item.title}" rejected and returned to seller.`);
   };
 
   return (
@@ -81,7 +93,9 @@ export default function AgentReviewScreen({ currentSession, onEditProperty }) {
           </View>
         ) : null}
 
-        {drafts.length === 0 ? (
+        {loading ? (
+          <ActivityIndicator color="#B6331E" accessibilityLabel="Loading drafts" />
+        ) : drafts.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>All caught up</Text>
             <Text style={styles.emptySub}>

@@ -23,6 +23,7 @@ export default function BrowseScreen({
   favouriteIds,
   favouriteBusy,
   favouritesReady,
+  isActive = true,
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +75,7 @@ export default function BrowseScreen({
   // Silent background sync on page 0 so listings that move to Under Offer / Sold
   // disappear automatically from the Buyer catalogue without interrupting scroll.
   useEffect(() => {
-    if (page !== 0) return;
+    if (page !== 0 || !isActive) return;
     let alive = true;
     const interval = setInterval(async () => {
       try {
@@ -91,7 +92,7 @@ export default function BrowseScreen({
       alive = false;
       clearInterval(interval);
     };
-  }, [filters, search, quickType, page]);
+  }, [filters, search, quickType, page, isActive]);
   return (
     <View style={s.page}>
       <FlatList

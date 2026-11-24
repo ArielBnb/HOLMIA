@@ -47,6 +47,11 @@ export function AuthProvider({ children }) {
       console.warn('Supabase signOut warning:', err);
     } finally {
       try {
+        await AsyncStorage.multiRemove([
+          '@holmia_chat_conversations_v3',
+          '@holmia_viewings_v1',
+          '@holmia_status_history_v1',
+        ]);
         if (Platform.OS !== 'web') {
           await AsyncStorage.clear();
         }

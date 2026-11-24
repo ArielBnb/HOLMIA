@@ -139,6 +139,9 @@ export class RentalRepository {
     if (!current) {
       return false;
     }
+    if (current.status === 'accepted') {
+      throw new Error('Cannot delete an accepted rental application');
+    }
     const result = this.db.run(`DELETE FROM rental_applications WHERE id = ?`, [id]);
     return result.changes > 0;
   }

@@ -349,7 +349,9 @@ export default function PropertyLifecycleScreen({
                 <View style={styles.statusRow}>
                   <Text style={styles.offerBuyer}>{deal.buyer_name}</Text>
                   <View style={styles.pill}>
-                    <Text style={styles.pillText}>{deal.status.charAt(0).toUpperCase() + deal.status.slice(1)}</Text>
+                    <Text style={styles.pillText}>
+                      {(deal.status || 'pending').charAt(0).toUpperCase() + (deal.status || 'pending').slice(1)}
+                    </Text>
                   </View>
                 </View>
                 <Text style={styles.offerMeta}>
@@ -383,12 +385,16 @@ export default function PropertyLifecycleScreen({
                   <Pressable
                     style={styles.chatLink}
                     onPress={async () => {
-                      const conv = await startOrFindConversation({
-                        property: selectedProp,
-                        userRole: role,
-                        userName: currentSession?.full_name || currentSession?.username,
-                      });
-                      onOpenChat(conv.id);
+                      try {
+                        const conv = await startOrFindConversation({
+                          property: selectedProp,
+                          userRole: role,
+                          userName: currentSession?.full_name || currentSession?.username,
+                        });
+                        if (conv?.id) onOpenChat(conv.id);
+                      } catch {
+                        // Ignore chat open error
+                      }
                     }}
                   >
                     <Text style={styles.chatLinkText}>Message about this listing →</Text>
