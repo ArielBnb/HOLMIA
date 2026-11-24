@@ -8,23 +8,24 @@ export default function BuyerOffersScreen({ submitted }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const generation = useRef(0);
+  const sequence = useRef({ version: 0 });
   const load = useCallback(async () => {
-    const ticket = ++generation.current;
+    const ticket = ++sequence.current.version;
     setRefreshing(true);
     try {
       const data = await getBuyerSubmissions();
-      if (ticket === generation.current) { setRows(data); setError(''); }
+      if (ticket === sequence.current.version) { setRows(data); setError(''); }
     } catch (failure) {
-      if (ticket === generation.current) setError(failure.message || 'Unable to load your activity.');
+      if (ticket === sequence.current.version) setError(failure.message || 'Unable to load your activity.');
     } finally {
-      if (ticket === generation.current) setRefreshing(false);
+      if (ticket === sequence.current.version) setRefreshing(false);
     }
   }, []);
   useEffect(() => {
+    const current = sequence.current;
     const first = setTimeout(load, 0);
     const listener = AppState.addEventListener('change', (state) => { if (state === 'active') load(); });
-    return () => { ++generation.current; clearTimeout(first); listener.remove(); };
+    return () => { ++current.version; clearTimeout(first); listener.remove(); };
   }, [load]);
   const visible = rows?.filter((row) => row.kind === kind);
   return (
