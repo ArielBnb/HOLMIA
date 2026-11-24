@@ -25,8 +25,9 @@ export default function AgentStatsScreen({ currentSession }) {
 
   const loadStats = useCallback(async () => {
     try {
-      const { data, error: rpcError } = await getSupabase().rpc('agent_dashboard');
-      if (!rpcError) {
+      const client = getSupabase();
+      const { data, error: rpcError } = await client.rpc('agent_dashboard');
+      if (!rpcError && data) {
         setStats({
           activeCount: Number(data?.active_count ?? 0),
           avgPrice: Number(data?.avg_active_price ?? 0),
@@ -37,13 +38,21 @@ export default function AgentStatsScreen({ currentSession }) {
         return;
       }
 
-      if (rpcError.code !== 'PGRST202') {
-        throw new Error(rpcError.message);
+      // Live fallback computed directly from the Agent's real assigned rows
+      let me = agentId;
+      if (!me) {
+        try {
+          const { data: authData } = await client.auth.getUser();
+          me = authData?.user?.id;
+        } catch {
+          // keep undefined
+        }
       }
 
-      // Live fallback computed directly from the Agent's real assigned rows
       const all = await getProperties({ activeOnly: false });
-      const mine = (all ?? []).filter((p) => p.agent_id === agentId);
+      const mine = me
+        ? (all ?? []).filter((p) => p.agent_id === me)
+        : (all ?? []).filter((p) => p.agent_id !== null && p.agent_id !== undefined);
       const active = mine.filter((p) => p.status === 'active');
       const avg = active.length
         ? Math.round(active.reduce((sum, p) => sum + (Number(p.price) || 0), 0) / active.length)
@@ -90,7 +99,11 @@ export default function AgentStatsScreen({ currentSession }) {
 
   useEffect(() => {
     const first = setTimeout(loadStats, 0);
-    return () => clearTimeout(first);
+    const interval = setInterval(loadStats, 5000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(interval);
+    };
   }, [loadStats]);
 
   const onRefresh = async () => {
