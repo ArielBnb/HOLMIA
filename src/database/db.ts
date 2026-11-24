@@ -176,6 +176,8 @@ export class SQLiteDatabase {
       -- At most one accepted offer per property (same guarantee as Supabase).
       CREATE UNIQUE INDEX IF NOT EXISTS idx_offers_one_accepted ON offers(property_id) WHERE status = 'accepted';
       CREATE INDEX IF NOT EXISTS idx_rentals_prop ON rental_applications(property_id);
+      -- At most one accepted rental application per property.
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_rentals_one_accepted ON rental_applications(property_id) WHERE status = 'accepted';
     `);
   }
 
@@ -198,7 +200,35 @@ export class SQLiteDatabase {
     this.db.exec(sql);
   }
 
+  private transactionDepth = 0;
+
   public transaction<T>(callback: () => T): T {
+    // Nested call (e.g. a service wrapping a repository method): use a savepoint
+    // so the inner work commits or rolls back with the outer transaction.
+    if (this.transactionDepth > 0) {
+      const name = `sp_${this.transactionDepth}`;
+      this.db.exec(`SAVEPOINT ${name};`);
+      this.transactionDepth++;
+      try {
+        const result = callback();
+        this.db.exec(`RELEASE ${name};`);
+        return result;
+      } catch (error) {
+        this.db.exec(`ROLLBACK TO ${name}; RELEASE ${name};`);
+        throw error;
+      } finally {
+        this.transactionDepth--;
+      }
+    }
+    this.transactionDepth++;
+    try {
+      return this.runTopLevel(callback);
+    } finally {
+      this.transactionDepth--;
+    }
+  }
+
+  private runTopLevel<T>(callback: () => T): T {
     this.db.exec('BEGIN TRANSACTION;');
     try {
       const result = callback();

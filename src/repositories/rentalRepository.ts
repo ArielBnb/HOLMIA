@@ -143,20 +143,78 @@ export class RentalRepository {
     return result.changes > 0;
   }
 
-  public acceptApplication(id: string, _actorId?: string): RentalApplication {
-    const app = this.findById(id);
-    if (!app) {
-      throw new Error(`Rental application '${id}' not found`);
-    }
-    if (app.status !== 'pending') {
-      throw new Error(`Cannot accept application with status '${app.status}'`);
-    }
+  /**
+   * ATOMIC ACCEPTANCE (rental lifecycle: active -> under_offer -> rented):
+   * accepts the application, rejects the other pending applications on the
+   * property, moves the property to 'under_offer' and records the transition.
+   * Same rules as public.decide_rental_application in Supabase.
+   */
+  public acceptApplication(id: string, actorId?: string): RentalApplication {
+    return this.db.transaction(() => {
+      const app = this.findById(id);
+      if (!app) {
+        throw new Error(`Rental application '${id}' not found`);
+      }
+      if (app.status !== 'pending') {
+        throw new Error(`Cannot accept application with status '${app.status}'`);
+      }
+      const property = this.db.get<Property>(`SELECT * FROM properties WHERE id = ?`, [app.property_id]);
+      if (!property) {
+        throw new Error(`Property '${app.property_id}' not found`);
+      }
+      if (property.status !== 'active') {
+        throw new Error(`Cannot accept application: property status is '${property.status}', must be 'active'`);
+      }
 
-    this.db.run(
-      `UPDATE rental_applications SET status = 'accepted', updated_at = datetime('now') WHERE id = ?`,
-      [id]
-    );
-    return this.findById(id)!;
+      this.db.run(
+        `UPDATE rental_applications SET status = 'accepted', updated_at = datetime('now') WHERE id = ?`,
+        [id]
+      );
+      this.db.run(
+        `UPDATE rental_applications SET status = 'rejected', updated_at = datetime('now')
+         WHERE property_id = ? AND id <> ? AND status = 'pending'`,
+        [app.property_id, id]
+      );
+      this.db.run(
+        `UPDATE properties SET status = 'under_offer', updated_at = datetime('now') WHERE id = ?`,
+        [app.property_id]
+      );
+      this.db.run(
+        `INSERT INTO status_history (id, property_id, old_status, new_status, changed_by, notes, changed_at)
+         VALUES (?, ?, 'active', 'under_offer', ?, ?, datetime('now'))`,
+        [randomUUID(), app.property_id, actorId || null, `Rental application ${id} accepted (move-in ${app.move_in_date}); other pending applications rejected.`]
+      );
+      return this.findById(id)!;
+    });
+  }
+
+  /**
+   * Tenancy starts: accepted application on an 'under_offer' rental -> 'rented'.
+   */
+  public completeRental(id: string, actorId?: string): Property {
+    return this.db.transaction(() => {
+      const app = this.findById(id);
+      if (!app) {
+        throw new Error(`Rental application '${id}' not found`);
+      }
+      if (app.status !== 'accepted') {
+        throw new Error(`Only an accepted application can start a tenancy (status is '${app.status}')`);
+      }
+      const property = this.db.get<Property>(`SELECT * FROM properties WHERE id = ?`, [app.property_id]);
+      if (!property || property.status !== 'under_offer') {
+        throw new Error(`Cannot mark as rented: property status is '${property?.status}', must be 'under_offer'`);
+      }
+      this.db.run(
+        `UPDATE properties SET status = 'rented', updated_at = datetime('now') WHERE id = ?`,
+        [app.property_id]
+      );
+      this.db.run(
+        `INSERT INTO status_history (id, property_id, old_status, new_status, changed_by, notes, changed_at)
+         VALUES (?, ?, 'under_offer', 'rented', ?, ?, datetime('now'))`,
+        [randomUUID(), app.property_id, actorId || null, `Tenancy started for application ${id}.`]
+      );
+      return this.db.get<Property>(`SELECT * FROM properties WHERE id = ?`, [app.property_id])!;
+    });
   }
 
   public rejectApplication(id: string): RentalApplication {

@@ -52,6 +52,7 @@ export default function SendEnquiryScreen({ property, onBack }) {
             {sent ? (
               <>
                 <Text accessibilityRole="alert" style={s.text}>Enquiry sent.</Text>
+                <Text style={s.text}>The seller or their agent will reply in Profile › My enquiries, where you can follow its status (Pending / Handled).</Text>
                 <Pressable accessibilityRole="button" style={[s.button, s.primary]} onPress={close}>
                   <Text style={s.primaryText}>Back to property</Text>
                 </Pressable>

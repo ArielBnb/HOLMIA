@@ -428,11 +428,7 @@ async function runAllTests(): Promise<void> {
   const updatedApp = rentalRepo.update('rental-app-1', { notes: 'Dossier avec deux garants' });
   assert(updatedApp.notes === 'Dossier avec deux garants', 'Update rental application notes');
 
-  // Accept application
-  const acceptedApp = rentalRepo.acceptApplication('rental-app-1');
-  assert(acceptedApp.status === 'accepted', 'Accept rental application');
-
-  // Create another application and reject it
+  // Create another application and reject it (while the listing is still active)
   const rentalApp2 = rentalRepo.create({
     property_id: 'prop-rent-2',
     buyer_id: 'user-b2',
@@ -440,6 +436,10 @@ async function runAllTests(): Promise<void> {
   });
   const rejectedApp = rentalRepo.rejectApplication(rentalApp2.id);
   assert(rejectedApp.status === 'rejected', 'Reject rental application');
+
+  // Accept application (the listing then moves to under_offer)
+  const acceptedApp = rentalRepo.acceptApplication('rental-app-1');
+  assert(acceptedApp.status === 'accepted', 'Accept rental application');
 
   // Delete rejected application
   const deletedApp = rentalRepo.delete(rentalApp2.id);
