@@ -317,6 +317,12 @@ export class SessionService {
     });
   }
 
+  /** Buyer: own offers with the decision (pending / accepted / rejected). */
+  public getMyOffers(): Offer[] {
+    const user = this.requireRole('buyer');
+    return this.offerRepo.findByBuyerId(user.id);
+  }
+
   /**
    * Review offers on a property:
    * - Permitted ONLY to the owning Seller or assigned Agent
