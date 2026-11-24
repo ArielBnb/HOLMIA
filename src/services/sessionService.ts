@@ -213,6 +213,68 @@ export class SessionService {
   }
 
   /**
+   * Status-change service used by the lifecycle screen (same rules as
+   * public.change_property_status in Supabase):
+   * - only the owning Seller or the assigned Agent
+   * - state machine enforced by PropertyRepository (Sold / Rented are final)
+   * - Under Offer only by accepting an offer / application; Sold / Rented need it
+   * - Under Offer -> Active releases the accepted offer / application
+   */
+  public changePropertyStatus(propertyId: string, newStatus: PropertyStatus, note?: string): Property {
+    const user = this.requireRole(['seller', 'agent']);
+    const prop = this.propertyRepo.findById(propertyId);
+    if (!prop) {
+      throw new Error(`Property '${propertyId}' not found`);
+    }
+    if (user.role === 'seller' && prop.seller_id !== user.id) {
+      throw new AccessDeniedError('Seller can only change the status of their own properties');
+    }
+    if (user.role === 'agent' && prop.agent_id !== user.id) {
+      throw new AccessDeniedError('Agent can only change the status of assigned properties');
+    }
+    if (newStatus === prop.status) {
+      throw new Error(`The listing is already '${prop.status}'`);
+    }
+    if (newStatus === 'under_offer' && ['draft', 'active'].includes(prop.status)) {
+      throw new Error('A listing moves to Under Offer when you accept an offer or application');
+    }
+    const dealTable = prop.listing_type === 'sale' ? 'offers' : 'rental_applications';
+    const hasAccepted = !!this.db.get(`SELECT 1 FROM ${dealTable} WHERE property_id = ? AND status = 'accepted'`, [propertyId]);
+    if ((newStatus === 'sold' || newStatus === 'rented') && prop.status === 'under_offer' && !hasAccepted) {
+      throw new Error(`Accept ${prop.listing_type === 'sale' ? 'an offer' : 'a rental application'} first`);
+    }
+
+    return this.db.transaction(() => {
+      let finalNote = note?.trim() || undefined;
+      if (prop.status === 'under_offer' && newStatus === 'active' && hasAccepted) {
+        this.db.run(
+          `UPDATE ${dealTable} SET status = 'rejected', updated_at = datetime('now') WHERE property_id = ? AND status = 'accepted'`,
+          [propertyId]
+        );
+        finalNote = finalNote || `Deal fell through; accepted ${prop.listing_type === 'sale' ? 'offer' : 'application'} released`;
+      }
+      // PropertyRepository validates the transition and writes status_history.
+      return this.propertyRepo.update(propertyId, { status: newStatus }, user.id, finalNote);
+    });
+  }
+
+  /** Status history of a property, newest first (owning Seller / assigned Agent only). */
+  public getPropertyHistory(propertyId: string) {
+    const user = this.requireRole(['seller', 'agent']);
+    const prop = this.propertyRepo.findById(propertyId);
+    if (!prop) {
+      throw new Error(`Property '${propertyId}' not found`);
+    }
+    if (user.role === 'seller' && prop.seller_id !== user.id) {
+      throw new AccessDeniedError('Seller can only see the history of their own properties');
+    }
+    if (user.role === 'agent' && prop.agent_id !== user.id) {
+      throw new AccessDeniedError('Agent can only see the history of assigned properties');
+    }
+    return [...this.propertyRepo.getStatusHistory(propertyId)].reverse();
+  }
+
+  /**
    * Moderate & activate a draft property:
    * - Agent: can review and activate an assigned draft
    * - Seller: can activate their own draft
