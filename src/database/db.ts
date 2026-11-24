@@ -176,6 +176,8 @@ export class SQLiteDatabase {
       -- At most one accepted offer per property (same guarantee as Supabase).
       CREATE UNIQUE INDEX IF NOT EXISTS idx_offers_one_accepted ON offers(property_id) WHERE status = 'accepted';
       CREATE INDEX IF NOT EXISTS idx_rentals_prop ON rental_applications(property_id);
+      -- At most one accepted rental application per property.
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_rentals_one_accepted ON rental_applications(property_id) WHERE status = 'accepted';
     `);
   }
 

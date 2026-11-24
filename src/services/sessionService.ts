@@ -400,6 +400,12 @@ export class SessionService {
     });
   }
 
+  /** Buyer: own rental applications with the decision (pending / accepted / rejected). */
+  public getMyRentalApplications(): RentalApplication[] {
+    const user = this.requireRole('buyer');
+    return this.rentalRepo.findByBuyerId(user.id);
+  }
+
   /**
    * Review rental applications on a property:
    * - Permitted ONLY to owning Seller or assigned Agent
@@ -456,6 +462,29 @@ export class SessionService {
     } else {
       return this.rentalRepo.rejectApplication(applicationId);
     }
+  }
+
+  /**
+   * Start the tenancy of an accepted application (property under_offer -> rented):
+   * - Permitted ONLY to owning Seller or assigned Agent
+   */
+  public completeRental(applicationId: string): Property {
+    const user = this.requireRole(['seller', 'agent']);
+    const app = this.rentalRepo.findById(applicationId);
+    if (!app) {
+      throw new Error(`Rental application '${applicationId}' not found`);
+    }
+    const prop = this.propertyRepo.findById(app.property_id);
+    if (!prop) {
+      throw new Error(`Property '${app.property_id}' not found`);
+    }
+    if (user.role === 'seller' && prop.seller_id !== user.id) {
+      throw new AccessDeniedError('Seller can only manage rentals of their own properties');
+    }
+    if (user.role === 'agent' && prop.agent_id !== user.id) {
+      throw new AccessDeniedError('Agent can only manage rentals of assigned properties');
+    }
+    return this.rentalRepo.completeRental(applicationId, user.id);
   }
 }
 
