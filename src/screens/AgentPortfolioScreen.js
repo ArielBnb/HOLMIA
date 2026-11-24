@@ -9,9 +9,8 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
-import { getProperties } from '../services/propertyService';
+import { deleteOwnProperty, getProperties } from '../services/propertyService';
 import { getOffersReceived } from '../services/offerService';
-import { startOrFindConversation } from '../services/chatService';
 
 export default function AgentPortfolioScreen({
   currentSession,
@@ -25,6 +24,7 @@ export default function AgentPortfolioScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   const loadPortfolio = useCallback(async () => {
     // The query also returns the public catalogue (other owners' active
@@ -53,7 +53,12 @@ export default function AgentPortfolioScreen({
 
   useEffect(() => {
     const first = setTimeout(loadPortfolio, 0);
-    return () => clearTimeout(first);
+    // Keep Seller / Agent portfolio synced live when another role approves or updates a listing
+    const interval = setInterval(loadPortfolio, 4000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(interval);
+    };
   }, [loadPortfolio]);
 
   const onRefresh = useCallback(async () => {
@@ -62,8 +67,18 @@ export default function AgentPortfolioScreen({
     setRefreshing(false);
   }, [loadPortfolio]);
 
-  const handleDelete = (id) => {
-    setProperties((prev) => prev.filter((p) => p.id !== id));
+  const handleDelete = async (item) => {
+    setDeleteError('');
+    if (['under_offer', 'sold', 'rented'].includes(item.status)) {
+      setDeleteError(`Cannot delete "${item.title}": listing is ${statusLabel[item.status] || item.status}.`);
+      return;
+    }
+    try {
+      await deleteOwnProperty(item.id);
+      setProperties((prev) => prev.filter((p) => p.id !== item.id));
+    } catch (failure) {
+      setDeleteError(failure.message || 'Unable to delete this listing.');
+    }
   };
 
   const statusLabel = {
@@ -156,6 +171,12 @@ export default function AgentPortfolioScreen({
           })}
         </ScrollView>
 
+        {deleteError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{deleteError}</Text>
+          </View>
+        ) : null}
+
         {/* Figma 14 Property Cards */}
         {filtered.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -202,7 +223,7 @@ export default function AgentPortfolioScreen({
                   </Pressable>
                   <Pressable
                     style={styles.inlineBtn}
-                    onPress={() => handleDelete(item.id)}
+                    onPress={() => handleDelete(item)}
                   >
                     <Text style={[styles.inlineBtnText, { color: '#B6331E' }]}>Delete</Text>
                   </Pressable>
@@ -353,5 +374,16 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: '#66605A',
+  },
+  errorBanner: {
+    borderWidth: 1,
+    borderColor: '#B6331E',
+    backgroundColor: 'rgba(182, 51, 30, 0.1)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    color: '#B6331E',
   },
 });

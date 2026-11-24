@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Pressable, Text, View } from 'react-native';
 import BrowseScreen from '../screens/BrowseScreen';
+import BookViewingScreen from '../screens/BookViewingScreen';
 import BuyerOffersScreen from '../screens/BuyerOffersScreen';
 import FavouritesScreen from '../screens/FavouritesScreen';
 import FiltersScreen from '../screens/FiltersScreen';
@@ -18,6 +19,7 @@ export default function BuyerNavigator({ tab, onTab }) {
   const [search, setSearch] = useState('');
   const [quickType, setQuickType] = useState('all');
   const [enquiry, setEnquiry] = useState(null);
+  const [viewing, setViewing] = useState(null);
   const [submission, setSubmission] = useState(null);
   const [submitted, setSubmitted] = useState(null);
   const [rows, setRows] = useState(null);
@@ -99,12 +101,16 @@ export default function BuyerNavigator({ tab, onTab }) {
       )}
       {page === 'details' && (
         <PropertyDetailsScreen propertyId={propertyId} onBack={() => setPage(null)}
-          onAction={setSubmission} onEnquiry={setEnquiry} onFavourite={toggle}
+          onAction={setSubmission} onEnquiry={setEnquiry} onViewing={setViewing} onFavourite={toggle}
           saved={ids.has(propertyId)} favouriteDisabled={!rows || !!busy.size} />
       )}
       {submission && (
         <PropertySubmissionScreen property={submission} onBack={() => setSubmission(null)}
           onSubmitted={(kind) => { setSubmitted(kind); setSubmission(null); setPage(null); onTab('Offers'); }} />
+      )}
+      {viewing && (
+        <BookViewingScreen property={viewing} onBack={() => setViewing(null)}
+          onBooked={() => { setSubmitted('viewing'); setViewing(null); setPage(null); onTab('Offers'); }} />
       )}
       {!page && (
         <View style={{ marginHorizontal: 32, paddingVertical: 16, borderTopWidth: 1, borderColor: '#ddd',

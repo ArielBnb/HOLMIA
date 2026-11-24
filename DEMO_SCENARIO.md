@@ -94,15 +94,17 @@ flowchart LR
   1. **`Browse` :** utiliser **`Filters`** (filtrer par `Sale`, `Flat`, `London`, fourchette de prix) ➔ **`Chelsea Garden Flat`** apparaît immédiatement !
   2. Cliquer sur le **cœur** (Favoris) ➔ aller sur l'onglet **`Favourites`** pour prouver la persistance.
   3. Ouvrir la fiche **`Chelsea Garden Flat`** (`PropertyDetailsScreen`) :
-     - Cliquer **`Send enquiry`** : envoyer *"Hello, is the patio south-facing? Can we arrange a viewing this Friday?"*.
+     - Cliquer **`Book a viewing`** (Écran 18 Figma bonus) : choisir une **date dans le calendrier interactif** + un **créneau horaire** (`10:00`, `14:00` ou `17:00`) → cliquer **`Request viewing`** !
+       - 👉 *La demande de visite est enregistrée (visible dans `My activity → Viewings`), une **notification pop-up `VIEWING`** s'affiche, et une demande structurée `[Viewing Request]` est envoyée en direct au Seller/Agent !*
+     - Cliquer **`Send enquiry`** : envoyer *"Hello, is the patio south-facing?"*.
        - 👉 *Sur la Fenêtre B (Agent), la **notification pop-up flottante** glisse en haut de l'écran !*
      - Cliquer **`Make offer`** : soumettre une offre de **`£475,000`** avec un message court.
        - 👉 *Nouvelle **notification pop-up** en temps réel côté Agent !*
-  4. Aller dans l'onglet **`Offers`** : montrer que l'offre de £475,000 apparaît en statut **`Pending`**.
+  4. Aller dans l'onglet **`Offers` (`My activity`)** : montrer les 3 sous-onglets **`Offers`** (`£475,000` en `Pending`), **`Applications`**, et **`Viewings`** (la visite réservée en `Pending`).
 - **Points de grille cochés :**
   - ✅ *Filters (price, location, property type, sale/rent)*
   - ✅ *Favourites, Enquiries, Offers*
-  - ✅ *Creativity / Extensions : pop-up temps réel en direct* (**+2 pts créativité / +5 pts bonus**)
+  - ✅ *Extensions (+5 pts) : **Scheduling of viewings** + pop-up temps réel en direct !*
 
 ---
 
@@ -110,7 +112,8 @@ flowchart LR
 - **Intervenant :** Timothé (**Agent**) + ABD (**Seller**)
 - **Actions à l'écran :**
   1. Sur la fenêtre **Agent**, cliquer directement sur la **notification pop-up** (ou aller dans **`Received`**) :
-     - Sous-onglet **`Enquiries`** : répondre à la question d'Ariel (*"Yes, south-facing! Friday 2 PM works for a viewing."*).
+     - Sous-onglet **`Viewings`** : montrer la demande de visite d'Ariel (date + créneau `14:00`) et cliquer **`Confirm`** (statut `Confirmed` + pop-up de confirmation).
+     - Sous-onglet **`Enquiries`** : répondre à la question d'Ariel (*"Yes, south-facing! Looking forward to seeing you at the viewing."*).
      - Sous-onglet **`Offers`** : accepter l'offre de **£475,000** (et expliquer à l'oral que si d'autres offres concurrentes existaient, elles sont **rejetées atomiquement** dans la même transaction SQL).
   2. Aller sur **`Properties` → `Chelsea Garden Flat`** (`Manage property`) :
      - Constater que le statut est passé automatiquement à **`Under Offer`**.
@@ -167,7 +170,7 @@ flowchart LR
 | Utilisation efficace des médias | 2 | Photos des biens + sélecteur d'images + illustrations fallback |
 | Créativité (hors cahier des charges) | 2 | Notifications pop-up temps réel + modération brouillons + double BDD |
 | Code commenté + liste des références | 2 | Acte 7 (`README.md` References + repositories commentés) |
-| **Extensions bonus** | **+5** | API Supabase, Realtime, images BDD, 300+ tests E2E, SQLite locale |
+| **Extensions bonus** | **+5** | **Scheduling of viewings (Figma 18)**, API Supabase, Realtime pop-ups, images BDD, 300+ tests E2E, SQLite locale |
 | **Pénalités évitées** | **0** | 0 template UI tiers, 0 crash, `npm run lint` = 0 erreur |
 
 ---

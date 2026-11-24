@@ -20,6 +20,7 @@ import { colors } from '../styles/theme';
 import EnquiriesReceivedScreen from './EnquiriesReceivedScreen';
 
 import RentalsReceivedScreen from './RentalsReceivedScreen';
+import ViewingsReceivedScreen from './ViewingsReceivedScreen';
 import PropertyMessages, { useConversations } from '../components/PropertyMessages';
 const danger = '#B3261E';
 const OFFER_STATUS = {
@@ -125,6 +126,7 @@ export default function OffersReceivedScreen({ currentSession }) {
           {[
             { id: 'offers', label: 'Offers' },
             { id: 'rentals', label: 'Applications' },
+            { id: 'viewings', label: 'Viewings' },
             { id: 'enquiries', label: 'Enquiries' },
             { id: 'messages', label: inbox.unread > 0 ? `Messages (${inbox.unread})` : 'Messages' },
           ].map((tab) => (
@@ -135,12 +137,13 @@ export default function OffersReceivedScreen({ currentSession }) {
               style={[styles.segmentItem, section === tab.id && styles.segmentItemActive]}
               onPress={() => setSection(tab.id)}
             >
-              <Text style={[styles.segmentText, section === tab.id && styles.segmentTextActive]}>{tab.label}</Text>
+              <Text numberOfLines={1} style={[styles.segmentText, section === tab.id && styles.segmentTextActive]}>{tab.label}</Text>
             </Pressable>
           ))}
         </View>
 
         {section === 'rentals' && <RentalsReceivedScreen />}
+        {section === 'viewings' && <ViewingsReceivedScreen role={role} userId={currentSession?.id} />}
         {section === 'enquiries' && <EnquiriesReceivedScreen role={role} />}
         {section === 'messages' && (
           <PropertyMessages
@@ -260,8 +263,8 @@ const styles = StyleSheet.create({
   dangerFill: { flex: 1, height: 48, backgroundColor: '#B6331E', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   confirm: { backgroundColor: 'rgba(182, 51, 30, 0.1)', borderRadius: 8, padding: 12, gap: 8 },
   confirmText: { color: '#292424', fontWeight: '600', fontSize: 13 },
-  segment: { flexDirection: 'row', gap: 8 },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#292424', backgroundColor: '#F6F5F0' },
+  segment: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  segmentItem: { paddingHorizontal: 12, alignItems: 'center', paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#292424', backgroundColor: '#F6F5F0' },
   segmentItemActive: { backgroundColor: '#292424' },
   segmentText: { color: '#292424', fontWeight: '400', fontSize: 13 },
   segmentTextActive: { color: '#F6F5F0', fontWeight: '700' },

@@ -15,6 +15,7 @@ export default function PropertyDetailsScreen({
   onBack,
   onAction,
   onEnquiry,
+  onViewing,
   onFavourite,
   saved,
   favouriteDisabled,
@@ -124,6 +125,15 @@ export default function PropertyDetailsScreen({
                 : "Apply to rent"}
             </Text>
           </Pressable>
+          {onViewing && (
+            <Pressable
+              accessibilityRole="button"
+              style={s.button}
+              onPress={() => onViewing(property)}
+            >
+              <Text style={s.text}>Book a viewing</Text>
+            </Pressable>
+          )}
           <Pressable
             accessibilityRole="button"
             style={s.button}

@@ -70,6 +70,28 @@ export default function BrowseScreen({
       clearTimeout(timer);
     };
   }, [filters, search, quickType, page, reload]);
+
+  // Silent background sync on page 0 so listings that move to Under Offer / Sold
+  // disappear automatically from the Buyer catalogue without interrupting scroll.
+  useEffect(() => {
+    if (page !== 0) return;
+    let alive = true;
+    const interval = setInterval(async () => {
+      try {
+        const data = await getBuyerProperties({ filters, search, quickType, page: 0 });
+        if (alive && Array.isArray(data)) {
+          setRows(data);
+          setMore(data.length === 20);
+        }
+      } catch {
+        // Silent background refresh
+      }
+    }, 5000);
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
+  }, [filters, search, quickType, page]);
   return (
     <View style={s.page}>
       <FlatList

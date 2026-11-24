@@ -33,7 +33,11 @@ export default function AgentReviewScreen({ currentSession, onEditProperty }) {
 
   useEffect(() => {
     const first = setTimeout(loadDrafts, 0);
-    return () => clearTimeout(first);
+    const interval = setInterval(loadDrafts, 5000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(interval);
+    };
   }, []);
 
   const onRefresh = async () => {
