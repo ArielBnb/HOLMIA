@@ -5,8 +5,9 @@
   "dependencies": {
     "@expo/metro-runtime": "~58.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "9.2.1",
     "@supabase/supabase-js": "^2.119.0",
-    "expo": "~58.0.24",
+    "expo": "~58.0.26",
     "expo-crypto": "~58.0.8",
     "expo-status-bar": "~58.0.5",
     "react": "19.3.0",
@@ -28,7 +29,7 @@
     "test:offers": "node --experimental-strip-types src/tests/testOfferDecisions.ts",
     "test:enquiries": "node --experimental-strip-types src/tests/testEnquiries.ts",
     "test:persistence": "node --experimental-strip-types src/tests/testLocalPersistence.ts",
-    "test:all": "npm run test:repositories && npm run test:session && npm run test:seller-form && npm run test:seller-edit && npm run test:offers && npm run test:enquiries && npm run test:persistence",
+    "test:all": "npm run test:repositories && npm run test:session && npm run test:seller-form && npm run test:seller-edit && npm run test:offers && npm run test:enquiries && npm run test:persistence && node --test tests/buyer-submissions.mjs",
     "seed:sqlite": "node --experimental-strip-types src/database/seed.ts"
   },
   "private": true,

@@ -46,6 +46,7 @@ export const buyerStyles = StyleSheet.create({
   },
   primaryText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   error: { color: "#9E2418", fontSize: 14 },
+  summary: { borderWidth: 1, borderColor: buyerColors.border, borderRadius: 8, padding: 12, gap: 6 },
   badge: {
     borderWidth: 1,
     borderColor: buyerColors.border,

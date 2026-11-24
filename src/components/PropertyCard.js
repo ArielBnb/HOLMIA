@@ -52,19 +52,21 @@ export function PropertyImage({ property, height }) {
     </View>
   );
 }
-export function FavouriteButton({ onPress }) {
+export function FavouriteButton({ onPress, saved = false, disabled = false }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Add to favourites"
+      accessibilityLabel={saved ? "Remove from favourites" : "Add to favourites"}
+      disabled={disabled}
+      accessibilityState={{ disabled, selected: saved }}
       onPress={onPress}
       hitSlop={10}
     >
-      <Text style={{ fontSize: 23, color: c.text }}>♡</Text>
+      <Text style={{ fontSize: 23, color: saved ? c.red : c.text }}>{saved ? "♥" : "♡"}</Text>
     </Pressable>
   );
 }
-export default function PropertyCard({ property, onOpen, onFavourite }) {
+export default function PropertyCard({ property, onOpen, onFavourite, saved, favouriteDisabled }) {
   return (
     <View
       style={{
@@ -99,7 +101,7 @@ export default function PropertyCard({ property, onOpen, onFavourite }) {
         </View>
       </Pressable>
       <View style={{ position: "absolute", right: 12, top: 123 }}>
-        <FavouriteButton onPress={() => onFavourite(property.id)} />
+        <FavouriteButton saved={saved} disabled={favouriteDisabled} onPress={() => onFavourite(property.id)} />
       </View>
     </View>
   );

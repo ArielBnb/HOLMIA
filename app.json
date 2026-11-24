@@ -9,6 +9,9 @@
       "supportsTablet": true
     },
     "backgroundColor": "#F6F5F0",
-    "primaryColor": "#183D35"
+    "primaryColor": "#183D35",
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }
