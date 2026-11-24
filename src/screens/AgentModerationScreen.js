@@ -23,33 +23,6 @@ export default function AgentModerationScreen({
 }) {
   const userRole = currentSession?.role || 'agent';
 
-  // Agent cannot create properties (Seller feature only)
-  if (userRole === 'agent' && !initialProperty) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <View style={styles.headerRow}>
-            {onBack && (
-              <Pressable onPress={onBack} style={styles.backBtn}>
-                <Text style={styles.backArrow}>←</Text>
-              </Pressable>
-            )}
-            <Text style={styles.headerTitle}>Access Restricted</Text>
-          </View>
-          <View style={styles.restrictedCard}>
-            <Text style={styles.restrictedTitle}>Agents Cannot Create Properties</Text>
-            <Text style={styles.restrictedText}>
-              In HOLMIA, property listings are submitted by Sellers as drafts. As an Estate Agent, your role is to review and moderate drafts in the "Review" tab, or manage your assigned listings in the "Properties" tab.
-            </Text>
-            <Pressable style={styles.publishBtn} onPress={onBack}>
-              <Text style={styles.publishBtnText}>Return to Managed Properties</Text>
-            </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   const defaultProperty = {
     id: null,
     title: '',
@@ -74,6 +47,33 @@ export default function AgentModerationScreen({
   const [agentModel, setAgentModel] = useState(prop.agent_id ? 'agent' : 'none'); // 'none' (direct) | 'agent'
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Agent cannot create properties (Seller feature only)
+  if (userRole === 'agent' && !initialProperty) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.headerRow}>
+            {onBack && (
+              <Pressable onPress={onBack} style={styles.backBtn}>
+                <Text style={styles.backArrow}>←</Text>
+              </Pressable>
+            )}
+            <Text style={styles.headerTitle}>Access Restricted</Text>
+          </View>
+          <View style={styles.restrictedCard}>
+            <Text style={styles.restrictedTitle}>Agents Cannot Create Properties</Text>
+            <Text style={styles.restrictedText}>
+              In HOLMIA, property listings are submitted by Sellers as drafts. As an Estate Agent, your role is to review and moderate drafts in the &quot;Review&quot; tab, or manage your assigned listings in the &quot;Properties&quot; tab.
+            </Text>
+            <Pressable style={styles.publishBtn} onPress={onBack}>
+              <Text style={styles.publishBtnText}>Return to Managed Properties</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const isTerminal = ['sold', 'rented'].includes(status);
   const isCommercialLocked = ['under_offer', 'sold', 'rented'].includes(status);

@@ -68,10 +68,6 @@ function MainHome({ profile }) {
   const sellerTabs = [
     { id: 'listings', label: 'My listings' },
     { id: 'add', label: 'Add' },
-    { id: 'lifecycle', label: 'Offers' },
-    // Create / edit / delete own listings with ownership and Under Offer locks.
-    { id: 'sell', label: 'Sell' },
-    // Received offers (accept / reject) and enquiries (reply) on own listings.
     { id: 'received', label: 'Received' },
     { id: 'messages', label: 'Messages' },
     { id: 'profile', label: 'Profile' },
@@ -174,15 +170,9 @@ function MainHome({ profile }) {
                   />
                 )}
 
-                {/* Wireframe 11: Add / Edit Property (Seller only) */}
-                {activeTab === 'add' && (
-                  <AgentModerationScreen
-                    property={editingProperty}
-                    currentSession={profile}
-                    onBack={() => setActiveTab('listings')}
-                    onSaved={() => setActiveTab('listings')}
-                    onOpenChat={handleOpenChat}
-                  />
+                {/* Add Property (Seller only) */}
+                {activeTab === 'add' && userRole === 'seller' && (
+                  <SellerPropertyFormScreen />
                 )}
 
                 {/* Wireframe 12: Offers & Property Lifecycle */}
@@ -193,8 +183,6 @@ function MainHome({ profile }) {
                     onOpenChat={handleOpenChat}
                   />
                 )}
-
-                {activeTab === 'sell' && userRole === 'seller' && <SellerPropertyFormScreen />}
 
                 {activeTab === 'received' && userRole === 'seller' && <OffersReceivedScreen currentSession={profile} />}
 

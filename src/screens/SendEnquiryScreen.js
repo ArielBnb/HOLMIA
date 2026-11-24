@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { randomUUID } from 'expo-crypto';
+import { randomUUID } from '../utils/uuid';
 import {
   ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable,
   SafeAreaView, ScrollView, Text, TextInput,
