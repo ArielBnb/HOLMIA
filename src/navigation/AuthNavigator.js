@@ -29,6 +29,7 @@ function MainHome({ profile }) {
 
   // Role-specific initial tab & navigation (Figma 13: Dashboard is Agent home)
   const [activeTab, setActiveTab] = useState(userRole === 'agent' ? 'stats' : 'listings');
+  const [buyerTab, setBuyerTab] = useState('Browse');
   const [editingProperty, setEditingProperty] = useState(null);
   const [viewingDetailsProperty, setViewingDetailsProperty] = useState(null);
   const [chatConvId, setChatConvId] = useState(null);
@@ -73,13 +74,11 @@ function MainHome({ profile }) {
     { id: 'profile', label: 'Profile' },
   ];
 
-  const buyerTabs = [
-    { id: 'listings', label: 'Catalogue' },
-    // Buyer enquiries and the stored replies from Seller / Agent.
-    { id: 'enquiries', label: 'Enquiries' },
-    { id: 'messages', label: 'Messages' },
-    { id: 'profile', label: 'Profile' },
-  ];
+  const buyerTabs = ['Browse', 'Favourites', 'Offers', 'Profile'].map((label) => ({ id: label, label }));
+  function selectBuyerTab(label) {
+    setBuyerTab(label);
+    setActiveTab(label === 'Profile' ? 'profile' : 'listings');
+  }
 
   const tabs = userRole === 'agent' ? agentTabs : userRole === 'seller' ? sellerTabs : buyerTabs;
 
@@ -156,9 +155,7 @@ function MainHome({ profile }) {
                 {/* Wireframe 10: Seller listings / Buyer catalogue */}
                 {activeTab === 'listings' && userRole === 'buyer' && (
                   <BuyerNavigator
-                    onProfile={() => setActiveTab('profile')}
-                    onEnquiries={() => setActiveTab('enquiries')}
-                    onMessages={() => setActiveTab('messages')}
+                    tab={buyerTab} onTab={selectBuyerTab}
                   />
                 )}
                 {activeTab === 'listings' && userRole === 'seller' && (
@@ -222,6 +219,11 @@ function MainHome({ profile }) {
                   ) : null}
                 </View>
 
+                {userRole === 'buyer' && ['Enquiries', 'Messages'].map((label) => (
+                  <Pressable key={label} accessibilityRole="button" onPress={() => setActiveTab(label.toLowerCase())}>
+                    <Text style={s.link}>{label === 'Enquiries' ? 'My enquiries' : label}</Text>
+                  </Pressable>
+                ))}
                 <Pressable
                   accessibilityRole="button"
                   style={styles.logoutBtn}
@@ -238,12 +240,13 @@ function MainHome({ profile }) {
       {/* Figma Bottom Navigation Bar (pure white #FFFFFF) */}
       {!(userRole === 'buyer' && activeTab === 'listings') && <View style={styles.bottomNav}>
         {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
+          const isActive = userRole === 'buyer' ? tab.id === 'Profile' && activeTab === 'profile' : activeTab === tab.id;
           return (
             <Pressable
               key={tab.id}
               style={styles.navItem}
               onPress={() => {
+                if (userRole === 'buyer') { selectBuyerTab(tab.id); return; }
                 setEditingProperty(null);
                 setViewingDetailsProperty(null);
                 if (tab.id !== 'messages' && tab.id !== 'enquiries') {
