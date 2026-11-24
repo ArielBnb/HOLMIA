@@ -20,6 +20,9 @@ export default function BrowseScreen({
   onFilters,
   onOpen,
   onFavourite,
+  favouriteIds,
+  favouriteBusy,
+  favouritesReady,
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +111,8 @@ export default function BrowseScreen({
             property={item}
             onOpen={onOpen}
             onFavourite={onFavourite}
+            saved={favouriteIds.has(item.id)}
+            favouriteDisabled={!favouritesReady || favouriteBusy.has(item.id)}
           />
         )}
         ListEmptyComponent={
