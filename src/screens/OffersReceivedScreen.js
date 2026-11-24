@@ -19,7 +19,7 @@ import { statusLabel } from '../services/propertyEditRules';
 import { colors } from '../styles/theme';
 import EnquiriesReceivedScreen from './EnquiriesReceivedScreen';
 
-const border = '#DBE1DC';
+import RentalsReceivedScreen from './RentalsReceivedScreen';
 const danger = '#B3261E';
 const OFFER_STATUS = {
   pending: { label: 'Pending', bg: '#FFF4E5', fg: '#8A5300' },
@@ -118,7 +118,7 @@ export default function OffersReceivedScreen({ currentSession }) {
         </View>
 
         <View style={styles.segment}>
-          {[{ id: 'offers', label: 'Offers' }, { id: 'enquiries', label: 'Enquiries' }].map((tab) => (
+          {[{ id: 'offers', label: 'Offers' }, { id: 'rentals', label: 'Applications' }, { id: 'enquiries', label: 'Enquiries' }].map((tab) => (
             <Pressable
               key={tab.id}
               accessibilityRole="tab"
@@ -131,6 +131,7 @@ export default function OffersReceivedScreen({ currentSession }) {
           ))}
         </View>
 
+        {section === 'rentals' && <RentalsReceivedScreen />}
         {section === 'enquiries' && <EnquiriesReceivedScreen role={role} />}
 
         {section === 'offers' && (<>
@@ -165,6 +166,7 @@ export default function OffersReceivedScreen({ currentSession }) {
                     <Badge text={s.label} bg={s.bg} fg={s.fg} />
                   </View>
 
+                  {!!offer.message && <Text style={styles.meta}>{offer.message}</Text>}
                   {confirming ? (
                     <View style={styles.confirm}>
                       <Text style={styles.confirmText}>
