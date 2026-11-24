@@ -8,32 +8,29 @@ import {
   RefreshControl,
 } from 'react-native';
 import { getProperties } from '../services/propertyService';
-import { authColors as colors } from '../styles/authTheme';
+
+const DEFAULT_STATS = {
+  activeCount: 3,
+  avgPrice: 632000,
+  listingsPerUser: [
+    { name: 'Demo Seller', count: 3 },
+  ],
+  offersPerProperty: [
+    { title: 'Bright Apartment in Central London', count: 2 },
+    { title: 'Industrial Converted Loft in Birmingham', count: 1 },
+    { title: 'Furnished Student Studio in Oxford', count: 1 },
+  ],
+};
 
 export default function AgentStatsScreen({ currentSession }) {
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState({
-    activeCount: 3,
-    avgPrice: 632000,
-    listingsPerUser: [
-      { name: 'Demo Seller', count: 1 },
-      { name: 'Alice Henderson', count: 1 },
-      { name: 'Marcus Sterling', count: 1 },
-    ],
-    offersPerProperty: [
-      { title: 'Modern Duplex in Canary Wharf', count: 3 },
-      { title: 'Bright Apartment in Central London', count: 2 },
-      { title: 'Victorian Townhouse in Islington', count: 1 },
-      { title: 'Contemporary Studio in Shoreditch', count: 2 },
-      { title: 'Industrial Converted Loft in Birmingham', count: 1 },
-    ],
-  });
+  const [stats, setStats] = useState(DEFAULT_STATS);
 
   const loadStats = useCallback(async () => {
     try {
       const all = await getProperties({ activeOnly: false });
       if (all && all.length > 0) {
-        // Calculate real stats strictly for the Agent's assigned portfolio
+        // Real stats strictly for the Agent's assigned portfolio
         const agentProperties = all.filter(
           (p) => p.agent_id !== null && p.agent_id !== undefined
         );
@@ -42,18 +39,18 @@ export default function AgentStatsScreen({ currentSession }) {
         const total = activeListings.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
         const avg = count > 0 ? Math.round(total / count) : 0;
 
-        // Group active listings per seller (Wireframe 13: Active listings per user)
+        // Active listings per user (Figma 13)
         const userMap = {};
         activeListings.forEach((p) => {
           const seller = p.seller_name || `User ${p.seller_id?.slice(0, 6) || '1'}`;
           userMap[seller] = (userMap[seller] || 0) + 1;
         });
         const perUserList = Object.entries(userMap)
-          .map(([name, count]) => ({ name, count }))
+          .map(([name, c]) => ({ name, count: c }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 5);
 
-        // Offers per property (Wireframe 13: Offers per property)
+        // Offers per property (Figma 13)
         const offersList = agentProperties
           .filter((p) => p.status !== 'draft')
           .slice(0, 5)
@@ -73,14 +70,14 @@ export default function AgentStatsScreen({ currentSession }) {
         setStats({
           activeCount: count,
           avgPrice: avg,
-          listingsPerUser: perUserList.length > 0 ? perUserList : stats.listingsPerUser,
-          offersPerProperty: offersList.length > 0 ? offersList : stats.offersPerProperty,
+          listingsPerUser: perUserList,
+          offersPerProperty: offersList,
         });
       }
-    } catch (e) {
-      // Keep state on failure
+    } catch {
+      // Keep current stats if network/store fails
     }
-  }, [stats.listingsPerUser, stats.offersPerProperty]);
+  }, []);
 
   useEffect(() => {
     loadStats();
@@ -104,60 +101,54 @@ export default function AgentStatsScreen({ currentSession }) {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Figma Header matching Wireframe 13: Dashboard */}
+        {/* Figma 13 Header */}
         <Text style={styles.screenTitle}>Dashboard</Text>
 
-        {/* Top KPI Cards (Pink/Beige box matching Wireframe 13) */}
+        {/* Top KPI Cards — rgba(182,51,30,0.1), borderless, rounded-8 */}
         <View style={styles.kpiRow}>
-          {/* Active listings */}
           <View style={styles.kpiCard}>
             <Text style={styles.kpiValue}>{stats.activeCount}</Text>
             <Text style={styles.kpiLabel}>Active listings</Text>
           </View>
 
-          {/* Average price */}
           <View style={styles.kpiCard}>
             <Text style={styles.kpiValue}>{formatPrice(stats.avgPrice)}</Text>
             <Text style={styles.kpiLabel}>Average price</Text>
           </View>
         </View>
 
-        {/* Section 1: Active listings per user (matching Wireframe 13) */}
-        <Text style={styles.sectionTitle}>Active listings per user</Text>
-        <View style={styles.tableCard}>
-          {stats.listingsPerUser.map((user, idx) => (
-            <View
-              key={user.name + idx}
-              style={[
-                styles.tableRow,
-                idx === stats.listingsPerUser.length - 1 && styles.tableRowLast,
-              ]}
-            >
-              <Text style={styles.tableRowLabel} numberOfLines={1}>
-                {user.name}
-              </Text>
-              <Text style={styles.tableRowCount}>{user.count}</Text>
-            </View>
-          ))}
+        {/* Active listings per user */}
+        <Text style={styles.sectionLabel}>Active listings per user</Text>
+        <View style={styles.listBox}>
+          {stats.listingsPerUser.length === 0 ? (
+            <Text style={styles.emptyText}>No active listings yet.</Text>
+          ) : (
+            stats.listingsPerUser.map((user, idx) => (
+              <View key={user.name + idx} style={styles.listRow}>
+                <Text style={styles.rowLabel} numberOfLines={1}>
+                  {user.name}
+                </Text>
+                <Text style={styles.rowCount}>{user.count}</Text>
+              </View>
+            ))
+          )}
         </View>
 
-        {/* Section 2: Offers per property (matching Wireframe 13) */}
-        <Text style={styles.sectionTitle}>Offers per property</Text>
-        <View style={styles.tableCard}>
-          {stats.offersPerProperty.map((item, idx) => (
-            <View
-              key={item.title + idx}
-              style={[
-                styles.tableRow,
-                idx === stats.offersPerProperty.length - 1 && styles.tableRowLast,
-              ]}
-            >
-              <Text style={styles.tableRowLabel} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <Text style={styles.tableRowCount}>{item.count}</Text>
-            </View>
-          ))}
+        {/* Offers per property */}
+        <Text style={styles.sectionLabel}>Offers per property</Text>
+        <View style={styles.listBox}>
+          {stats.offersPerProperty.length === 0 ? (
+            <Text style={styles.emptyText}>No properties tracked yet.</Text>
+          ) : (
+            stats.offersPerProperty.map((item, idx) => (
+              <View key={item.title + idx} style={styles.listRow}>
+                <Text style={styles.rowLabel} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <Text style={styles.rowCount}>{item.count}</Text>
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -167,81 +158,73 @@ export default function AgentStatsScreen({ currentSession }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 28,
+    gap: 12,
   },
   screenTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#2A2424',
-    marginBottom: 16,
-    letterSpacing: -0.3,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#292424',
   },
   kpiRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: '#FAEDE9',
+    backgroundColor: 'rgba(182, 51, 30, 0.1)',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2A2424',
-    paddingVertical: 18,
+    paddingVertical: 14,
     paddingHorizontal: 14,
-    justifyContent: 'center',
+    gap: 4,
   },
   kpiValue: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#2A2424',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: '#292424',
   },
   kpiLabel: {
     fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
+    fontWeight: '400',
+    color: '#292424',
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2A2424',
-    marginBottom: 8,
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#292424',
   },
-  tableCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+  listBox: {
     borderWidth: 1,
-    borderColor: '#2A2424',
-    paddingHorizontal: 14,
-    marginBottom: 20,
+    borderColor: '#292424',
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    backgroundColor: '#F6F5F0',
   },
-  tableRow: {
+  listRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
   },
-  tableRowLast: {
-    borderBottomWidth: 0,
-  },
-  tableRowLabel: {
+  rowLabel: {
     flex: 1,
-    fontSize: 13,
-    color: '#2A2424',
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#292424',
     marginRight: 12,
   },
-  tableRowCount: {
-    fontSize: 13,
+  rowCount: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#2A2424',
+    color: '#292424',
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#66605A',
   },
 });
-

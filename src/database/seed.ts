@@ -4,6 +4,7 @@ export function seedDatabase(db: SQLiteDatabase): void {
   db.transaction(() => {
     // Clean existing records in reverse dependency order
     db.exec(`
+      DELETE FROM enquiries;
       DELETE FROM offers;
       DELETE FROM rental_applications;
       DELETE FROM status_history;

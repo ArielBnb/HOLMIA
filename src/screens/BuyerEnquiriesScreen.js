@@ -1,7 +1,7 @@
 // Buyer: send an enquiry about a published listing and see the stored reply
 // from the Seller or the assigned Agent, with a Pending / Handled indicator.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { randomUUID } from 'expo-crypto';
+import { randomUUID } from '../utils/uuid';
 import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getProperties } from '../services/propertyService';
 import { getMyEnquiries, sendEnquiry } from '../services/enquiryService';

@@ -23,33 +23,6 @@ export default function AgentModerationScreen({
 }) {
   const userRole = currentSession?.role || 'agent';
 
-  // Agent cannot create properties (Seller feature only)
-  if (userRole === 'agent' && !initialProperty) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <View style={styles.headerRow}>
-            {onBack && (
-              <Pressable onPress={onBack} style={styles.backBtn}>
-                <Text style={styles.backArrow}>←</Text>
-              </Pressable>
-            )}
-            <Text style={styles.headerTitle}>Access Restricted</Text>
-          </View>
-          <View style={styles.restrictedCard}>
-            <Text style={styles.restrictedTitle}>Agents Cannot Create Properties</Text>
-            <Text style={styles.restrictedText}>
-              In HOLMIA, property listings are submitted by Sellers as drafts. As an Estate Agent, your role is to review and moderate drafts in the "Review" tab, or manage your assigned listings in the "Properties" tab.
-            </Text>
-            <Pressable style={styles.publishBtn} onPress={onBack}>
-              <Text style={styles.publishBtnText}>Return to Managed Properties</Text>
-            </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   const defaultProperty = {
     id: null,
     title: '',
@@ -74,6 +47,33 @@ export default function AgentModerationScreen({
   const [agentModel, setAgentModel] = useState(prop.agent_id ? 'agent' : 'none'); // 'none' (direct) | 'agent'
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Agent cannot create properties (Seller feature only)
+  if (userRole === 'agent' && !initialProperty) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.headerRow}>
+            {onBack && (
+              <Pressable onPress={onBack} style={styles.backBtn}>
+                <Text style={styles.backArrow}>←</Text>
+              </Pressable>
+            )}
+            <Text style={styles.headerTitle}>Access Restricted</Text>
+          </View>
+          <View style={styles.restrictedCard}>
+            <Text style={styles.restrictedTitle}>Agents Cannot Create Properties</Text>
+            <Text style={styles.restrictedText}>
+              In HOLMIA, property listings are submitted by Sellers as drafts. As an Estate Agent, your role is to review and moderate drafts in the &quot;Review&quot; tab, or manage your assigned listings in the &quot;Properties&quot; tab.
+            </Text>
+            <Pressable style={styles.publishBtn} onPress={onBack}>
+              <Text style={styles.publishBtnText}>Return to Managed Properties</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const isTerminal = ['sold', 'rented'].includes(status);
   const isCommercialLocked = ['under_offer', 'sold', 'rented'].includes(status);
@@ -427,35 +427,36 @@ export default function AgentModerationScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 32,
+    paddingTop: 24,
     paddingBottom: 40,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   backBtn: {
-    marginRight: 12,
+    marginRight: 10,
     padding: 4,
   },
   backArrow: {
-    fontSize: 22,
-    color: '#2A2424',
-    fontWeight: '600',
+    fontSize: 20,
+    color: '#292424',
+    fontWeight: '700',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#2A2424',
+    color: '#292424',
   },
   headerSub: {
     fontSize: 12,
-    color: '#666',
+    color: '#66605A',
     textTransform: 'capitalize',
   },
   formGroup: {
@@ -463,17 +464,17 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#2A2424',
+    borderColor: '#292424',
     borderRadius: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#2A2424',
-    backgroundColor: '#FFFFFF',
+    color: '#292424',
+    backgroundColor: '#F6F5F0',
   },
   inputLocked: {
-    backgroundColor: '#F5F5F5',
-    color: '#888',
+    backgroundColor: 'rgba(41, 36, 36, 0.06)',
+    color: '#66605A',
   },
   textarea: {
     minHeight: 90,
@@ -481,28 +482,28 @@ const styles = StyleSheet.create({
   },
   twoColRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     marginBottom: 12,
   },
   togglePill: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#2A2424',
+    borderColor: '#292424',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   togglePillActive: {
-    backgroundColor: '#2A2424',
+    backgroundColor: '#292424',
   },
   togglePillText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2A2424',
+    color: '#292424',
   },
   togglePillTextActive: {
-    color: '#FFFFFF',
+    color: '#F6F5F0',
   },
   typeSelectorRow: {
     flexDirection: 'row',
@@ -512,11 +513,11 @@ const styles = StyleSheet.create({
   typePill: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#2A2424',
-    borderRadius: 8,
+    borderColor: '#292424',
+    borderRadius: 20,
     paddingVertical: 8,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F5F0',
   },
   typePillActive: {
     backgroundColor: '#2A2424',
