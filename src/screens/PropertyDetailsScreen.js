@@ -15,6 +15,9 @@ export default function PropertyDetailsScreen({
   onBack,
   onAction,
   onEnquiry,
+  onFavourite,
+  saved,
+  favouriteDisabled,
 }) {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,14 +51,16 @@ export default function PropertyDetailsScreen({
       <View style={[s.row, { justifyContent: "space-between" }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back to Browse"
+          accessibilityLabel="Back to property list"
           onPress={onBack}
         >
           <Text style={s.heading}>← Details</Text>
         </Pressable>
         {property && (
           <FavouriteButton
-            onPress={() => onAction("favourites", property.id)}
+            saved={saved}
+            disabled={favouriteDisabled}
+            onPress={() => onFavourite(property.id)}
           />
         )}
       </View>
@@ -110,10 +115,7 @@ export default function PropertyDetailsScreen({
             accessibilityRole="button"
             style={[s.button, s.primary]}
             onPress={() =>
-              onAction(
-                property.listing_type === "sale" ? "offer" : "rental",
-                property.id,
-              )
+              onAction(property)
             }
           >
             <Text style={s.primaryText}>
