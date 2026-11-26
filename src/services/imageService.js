@@ -4,37 +4,37 @@ import { randomUUID } from '../utils/uuid';
 
 export const PROPERTY_IMAGE_BUCKET = 'property-images';
 
-// Curated HD UK real-estate photography (stable https:// URLs satisfying DB constraints).
+// Curated realistic UK real-estate photography (stable https:// URLs satisfying DB constraints).
 export const CURATED_PROPERTY_PHOTOS = [
   {
     id: 'london-flat',
     label: 'London Flat',
-    url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80',
+    url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=80',
   },
   {
-    id: 'family-house',
-    label: 'Family House',
-    url: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=900&q=80',
+    id: 'uk-brick-house',
+    label: 'Brick House',
+    url: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=900&q=80',
   },
   {
-    id: 'modern-studio',
-    label: 'Modern Studio',
-    url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80',
+    id: 'student-studio',
+    label: 'Cosy Studio',
+    url: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=900&q=80',
   },
   {
-    id: 'industrial-loft',
-    label: 'Loft',
-    url: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=80',
+    id: 'brick-loft',
+    label: 'Brick Loft',
+    url: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=900&q=80',
   },
   {
-    id: 'riverside-terrace',
-    label: 'Terrace Flat',
-    url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80',
+    id: 'riverside-flat',
+    label: 'City Flat',
+    url: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80',
   },
   {
-    id: 'garden-home',
-    label: 'Garden Home',
-    url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=900&q=80',
+    id: 'garden-cottage',
+    label: 'Garden House',
+    url: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=900&q=80',
   },
 ];
 

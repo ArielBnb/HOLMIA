@@ -14,6 +14,7 @@ import {
   subscribeToAppNotifications,
   subscribeToLocalNotifications,
 } from '../services/notificationService';
+import { getTabBadges, markTabSeen } from '../services/badgeService';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import EmailConfirmationScreen from '../screens/EmailConfirmationScreen';
@@ -40,19 +41,45 @@ function MainHome({ profile }) {
   const [viewingDetailsProperty, setViewingDetailsProperty] = useState(null);
   const [chatConvId, setChatConvId] = useState(null);
   const [activeNotification, setActiveNotification] = useState(null);
+  const [tabBadges, setTabBadges] = useState({});
+
+  const refreshBadges = useCallback(async () => {
+    try {
+      const next = await getTabBadges(profile);
+      setTabBadges(next || {});
+    } catch {
+      // keep current badges
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    let alive = true;
+    const run = async () => {
+      if (alive) await refreshBadges();
+    };
+    const first = setTimeout(run, 0);
+    const interval = setInterval(run, 8000);
+    return () => {
+      alive = false;
+      clearTimeout(first);
+      clearInterval(interval);
+    };
+  }, [refreshBadges]);
 
   useEffect(() => {
     const unsubRemote = subscribeToAppNotifications(profile, (notif) => {
       setActiveNotification(notif);
+      refreshBadges();
     });
     const unsubLocal = subscribeToLocalNotifications((notif) => {
       setActiveNotification(notif);
+      refreshBadges();
     });
     return () => {
       unsubRemote?.();
       unsubLocal?.();
     };
-  }, [profile]);
+  }, [profile, refreshBadges]);
 
   const dismissNotification = useCallback(() => {
     setActiveNotification(null);
@@ -121,6 +148,10 @@ function MainHome({ profile }) {
   function selectBuyerTab(label) {
     setBuyerTab(label);
     setActiveTab(label === 'Profile' ? 'profile' : 'listings');
+    if (profile?.id && (label === 'Offers' || label === 'Profile')) {
+      markTabSeen(profile.id, label);
+      setTabBadges((prev) => ({ ...prev, [label]: 0 }));
+    }
   }
 
   const tabs = userRole === 'agent' ? agentTabs : userRole === 'seller' ? sellerTabs : buyerTabs;
@@ -204,7 +235,7 @@ function MainHome({ profile }) {
                 {/* Wireframe 10: Seller listings / Buyer catalogue */}
                 {activeTab === 'listings' && userRole === 'buyer' && (
                   <BuyerNavigator
-                    tab={buyerTab} onTab={selectBuyerTab}
+                    tab={buyerTab} onTab={selectBuyerTab} tabBadges={tabBadges}
                   />
                 )}
                 {activeTab === 'listings' && userRole === 'seller' && (
@@ -261,7 +292,18 @@ function MainHome({ profile }) {
                 </View>
 
                 {userRole === 'buyer' && ['Enquiries', 'Messages'].map((label) => (
-                  <Pressable key={label} accessibilityRole="button" onPress={() => setActiveTab(label.toLowerCase())}>
+                  <Pressable
+                    key={label}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      const target = label.toLowerCase();
+                      if (profile?.id && target === 'enquiries') {
+                        markTabSeen(profile.id, 'enquiries');
+                        setTabBadges((prev) => ({ ...prev, Profile: 0 }));
+                      }
+                      setActiveTab(target);
+                    }}
+                  >
                     <Text style={s.link}>{label === 'Enquiries' ? 'My enquiries' : label}</Text>
                   </Pressable>
                 ))}
@@ -312,6 +354,7 @@ function MainHome({ profile }) {
       {!(userRole === 'buyer' && activeTab === 'listings') && <View style={styles.bottomNav}>
         {tabs.map((tab) => {
           const isActive = userRole === 'buyer' ? tab.id === 'Profile' && activeTab === 'profile' : activeTab === tab.id;
+          const badgeCount = Number(tabBadges[tab.id] || 0);
           return (
             <Pressable
               key={tab.id}
@@ -323,12 +366,23 @@ function MainHome({ profile }) {
                 if (tab.id !== 'messages' && tab.id !== 'enquiries') {
                   setChatConvId(null);
                 }
+                if (profile?.id) {
+                  markTabSeen(profile.id, tab.id);
+                  setTabBadges((prev) => ({ ...prev, [tab.id]: 0 }));
+                }
                 setActiveTab(tab.id);
               }}
             >
-              <Text numberOfLines={1} style={[styles.navLabel, isActive && styles.navLabelActive]}>
-                {tab.label}
-              </Text>
+              <View style={styles.navLabelRow}>
+                <Text numberOfLines={1} style={[styles.navLabel, isActive && styles.navLabelActive]}>
+                  {tab.label}
+                </Text>
+                {badgeCount > 0 && (
+                  <View style={styles.navBadge}>
+                    <Text style={styles.navBadgeText}>{badgeCount > 9 ? '9+' : badgeCount}</Text>
+                  </View>
+                )}
+              </View>
             </Pressable>
           );
         })}
@@ -435,6 +489,26 @@ const styles = StyleSheet.create({
   navLabelActive: {
     fontWeight: '700',
     color: '#292424',
+  },
+  navLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  navBadge: {
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#B6331E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  navBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
   },
   profileContainer: {
     flex: 1,

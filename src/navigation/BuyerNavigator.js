@@ -12,7 +12,7 @@ import { emptyFilters } from '../services/buyerFilters';
 import { getFavourites, setFavourite } from '../services/favouriteService';
 import { buyerStyles as s, buyerColors as c } from '../styles/buyerTheme';
 
-export default function BuyerNavigator({ tab, onTab }) {
+export default function BuyerNavigator({ tab, onTab, tabBadges = {} }) {
   const [page, setPage] = useState(null);
   const [propertyId, setPropertyId] = useState(null);
   const [filters, setFilters] = useState(emptyFilters);
@@ -117,16 +117,26 @@ export default function BuyerNavigator({ tab, onTab }) {
       {!page && (
         <View style={{ marginHorizontal: 32, paddingVertical: 16, borderTopWidth: 1, borderColor: '#ddd',
           flexDirection: 'row', justifyContent: 'space-between' }}>
-          {['Browse', 'Favourites', 'Offers', 'Profile'].map((label) => (
-            <Pressable key={label} accessibilityRole="tab" accessibilityState={{ selected: tab === label }}
-              onPress={() => {
-                onTab(label);
-                setSubmitted(null);
-                if (label === 'Favourites' && !pending.current.size) loadFavourites();
-              }}>
-              <Text style={{ color: c.text, fontSize: 12, fontWeight: tab === label ? '700' : '400' }}>{label}</Text>
-            </Pressable>
-          ))}
+          {['Browse', 'Favourites', 'Offers', 'Profile'].map((label) => {
+            const count = Number(tabBadges[label] || 0);
+            return (
+              <Pressable key={label} accessibilityRole="tab" accessibilityState={{ selected: tab === label }}
+                onPress={() => {
+                  onTab(label);
+                  setSubmitted(null);
+                  if (label === 'Favourites' && !pending.current.size) loadFavourites();
+                }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ color: c.text, fontSize: 12, fontWeight: tab === label ? '700' : '400' }}>{label}</Text>
+                  {count > 0 && (
+                    <View style={{ minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#B6331E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700', lineHeight: 12 }}>{count > 9 ? '9+' : count}</Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
       )}
       {enquiry && <SendEnquiryScreen property={enquiry} onBack={() => setEnquiry(null)} />}
