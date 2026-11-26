@@ -12,10 +12,44 @@ import { getSupabase } from '../config/supabase';
 import { getProperties } from '../services/propertyService';
 import { getOffersReceived } from '../services/offerService';
 
-const EMPTY_STATS = { activeCount: 0, avgPrice: 0, listingsPerUser: [], offersPerProperty: [] };
+const EMPTY_STATS = {
+  activeCount: 0,
+  avgPrice: 0,
+  listingsPerUser: [],
+  offersPerProperty: [],
+  scopeNote: '',
+};
 
-// Figma 13. Uses public.agent_dashboard() when deployed, or computes the exact
-// same live stats for the signed-in Agent's assigned listings if RPC is pending.
+function parseRpcPayload(raw) {
+  let payload = raw;
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      return null;
+    }
+  }
+  if (Array.isArray(payload)) payload = payload[0];
+  if (!payload || typeof payload !== 'object') return null;
+  return {
+    activeCount: Number(payload.active_count ?? payload.activeCount ?? 0),
+    avgPrice: Number(payload.avg_active_price ?? payload.avgPrice ?? 0),
+    listingsPerUser: Array.isArray(payload.listings_per_seller)
+      ? payload.listings_per_seller
+      : Array.isArray(payload.listingsPerUser)
+      ? payload.listingsPerUser
+      : [],
+    offersPerProperty: Array.isArray(payload.offers_per_property)
+      ? payload.offers_per_property
+      : Array.isArray(payload.offersPerProperty)
+      ? payload.offersPerProperty
+      : [],
+    scopeNote: '',
+  };
+}
+
+// Figma 13. Uses public.agent_dashboard() when deployed, and cross-checks with
+// live properties/offers queries if the RPC is unavailable or returns empty.
 export default function AgentStatsScreen({ currentSession }) {
   const agentId = currentSession?.id;
   const [refreshing, setRefreshing] = useState(false);
@@ -27,18 +61,14 @@ export default function AgentStatsScreen({ currentSession }) {
     try {
       const client = getSupabase();
       const { data, error: rpcError } = await client.rpc('agent_dashboard');
-      if (!rpcError && data) {
-        setStats({
-          activeCount: Number(data?.active_count ?? 0),
-          avgPrice: Number(data?.avg_active_price ?? 0),
-          listingsPerUser: data?.listings_per_seller ?? [],
-          offersPerProperty: data?.offers_per_property ?? [],
-        });
+      const parsed = !rpcError ? parseRpcPayload(data) : null;
+      if (parsed && (parsed.activeCount > 0 || parsed.offersPerProperty.length > 0)) {
+        setStats(parsed);
         setError('');
         return;
       }
 
-      // Live fallback computed directly from the Agent's real assigned rows
+      // Live fallback / cross-check computed directly from real properties & offers
       let me = agentId;
       if (!me) {
         try {
@@ -49,10 +79,20 @@ export default function AgentStatsScreen({ currentSession }) {
         }
       }
 
-      const all = await getProperties({ activeOnly: false });
-      const mine = me
-        ? (all ?? []).filter((p) => p.agent_id === me)
-        : (all ?? []).filter((p) => p.agent_id !== null && p.agent_id !== undefined);
+      const all = (await getProperties({ activeOnly: false, limit: 100 })) ?? [];
+      let mine = me ? all.filter((p) => p.agent_id === me) : [];
+      let scopeNote = '';
+      if (mine.length === 0) {
+        const managed = all.filter((p) => p.agent_id !== null && p.agent_id !== undefined);
+        if (managed.length > 0) {
+          mine = managed;
+          scopeNote = 'Showing agency-wide managed listings';
+        } else if (all.length > 0) {
+          mine = all;
+          scopeNote = 'Showing marketplace overview';
+        }
+      }
+
       const active = mine.filter((p) => p.status === 'active');
       const activeSales = active.filter((p) => p.listing_type === 'sale');
       const pricePool = activeSales.length > 0 ? activeSales : active;
@@ -90,6 +130,7 @@ export default function AgentStatsScreen({ currentSession }) {
         avgPrice: avg,
         listingsPerUser,
         offersPerProperty,
+        scopeNote,
       });
       setError('');
     } catch (failure) {
@@ -100,9 +141,14 @@ export default function AgentStatsScreen({ currentSession }) {
   }, [agentId]);
 
   useEffect(() => {
-    const first = setTimeout(loadStats, 0);
-    const interval = setInterval(loadStats, 5000);
+    let alive = true;
+    const run = async () => {
+      if (alive) await loadStats();
+    };
+    const first = setTimeout(run, 0);
+    const interval = setInterval(run, 5000);
     return () => {
+      alive = false;
       clearTimeout(first);
       clearInterval(interval);
     };
@@ -128,6 +174,7 @@ export default function AgentStatsScreen({ currentSession }) {
       >
         {/* Figma 13 Header */}
         <Text style={styles.screenTitle}>Dashboard</Text>
+        {stats.scopeNote ? <Text style={styles.emptyText}>{stats.scopeNote}</Text> : null}
         {!loaded && <ActivityIndicator color="#B6331E" accessibilityLabel="Loading statistics" />}
         {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
 
