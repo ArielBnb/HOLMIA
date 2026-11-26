@@ -47,6 +47,7 @@ export default function PropertyLifecycleScreen({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null); // { kind: 'success' | 'error', text }
   const [history, setHistory] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const loadProperties = useCallback(async () => {
     try {
@@ -63,9 +64,8 @@ export default function PropertyLifecycleScreen({
     if (!propertyId) return;
     try {
       setHistory(await getPropertyHistory(propertyId));
-    } catch (failure) {
+    } catch {
       setHistory([]);
-      setMessage({ kind: 'error', text: failure.message });
     }
   }, []);
 
@@ -81,7 +81,8 @@ export default function PropertyLifecycleScreen({
 
   const selectedProp = properties?.find((p) => p.id === selectedPropId) || null;
   const actions = availableActions(selectedProp, role);
-  const effectiveTarget = actions.some((a) => a.to === targetStatus) ? targetStatus : actions[0]?.to || '';
+  const defaultAction = actions.find((a) => a.to === 'sold' || a.to === 'rented') || actions[0];
+  const effectiveTarget = actions.some((a) => a.to === targetStatus) ? targetStatus : defaultAction?.to || '';
   const chosen = actions.find((a) => a.to === effectiveTarget);
   const isTerminal = !!selectedProp && isFinalStatus(selectedProp.status);
 
@@ -322,28 +323,37 @@ export default function PropertyLifecycleScreen({
 
                 <Text style={styles.noteText}>{statusGuidance(selectedProp, role) || 'note: only valid status changes (no Sold → Active)'}</Text>
 
-                {/* Status history recorded by the database */}
-                <View style={styles.statusRow}>
-                  <Text style={styles.sectionLabel}>Status history</Text>
-                  <Pressable accessibilityRole="button" onPress={() => loadHistory(selectedProp.id)}>
-                    <Text style={styles.chatLinkText}>↻ Refresh</Text>
-                  </Pressable>
-                </View>
-                <View style={styles.historyBox}>
-                  {history === null && <ActivityIndicator color="#B6331E" accessibilityLabel="Loading history" />}
-                  {history?.length === 0 && <Text style={styles.historyDate}>No status change recorded yet.</Text>}
-                  {history?.map((entry) => (
-                    <View key={entry.id} style={styles.historyItem}>
-                      <View style={styles.historyRow}>
-                        <Text style={styles.historyLabel} numberOfLines={1}>{historyLine(entry)}</Text>
-                        <Text style={styles.historyDate}>{historyWhen(entry.changed_at)}</Text>
+                {/* Collapsible status history (hidden by default for clean Figma 15 layout) */}
+                <Pressable
+                  accessibilityRole="button"
+                  style={[styles.statusRow, { paddingVertical: 4 }]}
+                  onPress={() => {
+                    const next = !showHistory;
+                    setShowHistory(next);
+                    if (next) loadHistory(selectedProp.id);
+                  }}
+                >
+                  <Text style={styles.sectionLabel}>
+                    {showHistory ? 'Hide status history ▴' : 'Show status history ▾'}
+                  </Text>
+                </Pressable>
+                {showHistory && (
+                  <View style={styles.historyBox}>
+                    {history === null && <ActivityIndicator color="#B6331E" accessibilityLabel="Loading history" />}
+                    {history?.length === 0 && <Text style={styles.historyDate}>No status change recorded yet.</Text>}
+                    {history?.map((entry) => (
+                      <View key={entry.id} style={styles.historyItem}>
+                        <View style={styles.historyRow}>
+                          <Text style={styles.historyLabel} numberOfLines={1}>{historyLine(entry)}</Text>
+                          <Text style={styles.historyDate}>{historyWhen(entry.changed_at)}</Text>
+                        </View>
+                        <Text style={styles.historyMeta}>
+                          by {historyWho(entry)}{entry.note ? ` · ${entry.note}` : ''}
+                        </Text>
                       </View>
-                      <Text style={styles.historyMeta}>
-                        by {historyWho(entry)}{entry.note ? ` · ${entry.note}` : ''}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+                    ))}
+                  </View>
+                )}
               </>
             )}
           </>
