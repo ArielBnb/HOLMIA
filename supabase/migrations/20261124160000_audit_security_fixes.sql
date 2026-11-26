@@ -112,4 +112,24 @@ end $$;
 revoke all on function public.agent_dashboard() from public, anon;
 grant execute on function public.agent_dashboard() to authenticated;
 
+-- 5. Drop any legacy status-check trigger on public.properties (e.g. from
+--    uncommitted final_workflows) that conflicts with validate_status_transition
+--    and rejects valid transitions with "Invalid listing status change".
+do $$
+declare
+  r record;
+begin
+  for r in
+    select t.tgname
+    from pg_trigger t
+    join pg_proc p on p.oid = t.tgfoid
+    where t.tgrelid = 'public.properties'::regclass
+      and not t.tgisinternal
+      and t.tgname <> 'validate_status_transition'
+      and pg_get_functiondef(p.oid) ilike '%Invalid listing status change%'
+  loop
+    execute format('drop trigger if exists %I on public.properties;', r.tgname);
+  end loop;
+end $$;
+
 commit;
