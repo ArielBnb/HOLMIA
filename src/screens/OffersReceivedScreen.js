@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { acceptOffer, getOffersReceived, rejectOffer } from '../services/offerService';
+import { getSubTabBadges } from '../services/badgeService';
 import { canDecide, groupOffersByProperty } from '../services/offerRules';
 import { statusLabel } from '../services/propertyEditRules';
 import { colors } from '../styles/theme';
@@ -48,20 +49,35 @@ export default function OffersReceivedScreen({ currentSession }) {
   const [notice, setNotice] = useState('');
   const [confirm, setConfirm] = useState(null); // { offer, action: 'accept' | 'reject' }
   const [busyId, setBusyId] = useState(null);
+  const [subBadges, setSubBadges] = useState({});
 
   const load = useCallback(async () => {
     try {
-      setGroups(groupOffersByProperty(await getOffersReceived()));
+      const [received, badges] = await Promise.all([
+        getOffersReceived(),
+        getSubTabBadges(currentSession),
+      ]);
+      setGroups(groupOffersByProperty(received));
+      setSubBadges(badges || {});
       setError('');
     } catch (failure) {
       setError(failure.message);
       setGroups((current) => current ?? []);
     }
-  }, []);
+  }, [currentSession]);
 
   useEffect(() => {
-    const first = setTimeout(load, 0);
-    return () => clearTimeout(first);
+    let alive = true;
+    const run = async () => {
+      if (alive) await load();
+    };
+    const first = setTimeout(run, 0);
+    const interval = setInterval(run, 6000);
+    return () => {
+      alive = false;
+      clearTimeout(first);
+      clearInterval(interval);
+    };
   }, [load]);
 
   const refresh = async () => {
@@ -124,20 +140,29 @@ export default function OffersReceivedScreen({ currentSession }) {
 
         <View style={styles.segment}>
           {[
-            { id: 'offers', label: 'Offers' },
-            { id: 'rentals', label: 'Applications' },
-            { id: 'viewings', label: 'Viewings' },
-            { id: 'enquiries', label: 'Enquiries' },
-            { id: 'messages', label: inbox.unread > 0 ? `Messages (${inbox.unread})` : 'Messages' },
+            { id: 'offers', label: 'Offers', count: subBadges.offers || 0 },
+            { id: 'rentals', label: 'Applications', count: subBadges.rentals || 0 },
+            { id: 'viewings', label: 'Viewings', count: subBadges.viewings || 0 },
+            { id: 'enquiries', label: 'Enquiries', count: subBadges.enquiries || 0 },
+            { id: 'messages', label: 'Messages', count: inbox.unread || 0 },
           ].map((tab) => (
             <Pressable
               key={tab.id}
               accessibilityRole="tab"
               accessibilityState={{ selected: section === tab.id }}
               style={[styles.segmentItem, section === tab.id && styles.segmentItemActive]}
-              onPress={() => setSection(tab.id)}
+              onPress={() => { setSection(tab.id); if (tab.id === 'messages') inbox.refresh(); }}
             >
-              <Text numberOfLines={1} style={[styles.segmentText, section === tab.id && styles.segmentTextActive]}>{tab.label}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text numberOfLines={1} style={[styles.segmentText, section === tab.id && styles.segmentTextActive]}>{tab.label}</Text>
+                {tab.count > 0 && (
+                  <View style={{ minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#B6331E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700', lineHeight: 12 }}>
+                      {tab.count > 9 ? '9+' : tab.count}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </Pressable>
           ))}
         </View>

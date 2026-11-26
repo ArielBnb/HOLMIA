@@ -3,6 +3,7 @@ import { ActivityIndicator, AppState, Pressable, RefreshControl, ScrollView, Tex
 import { useAuth } from '../context/AuthContext';
 import { getBuyerSubmissions } from '../services/submissionService';
 import { getViewingsForRole } from '../services/viewingService';
+import { getSubTabBadges, markTabSeen } from '../services/badgeService';
 import { buyerColors as c, buyerStyles as s } from '../styles/buyerTheme';
 
 export default function BuyerOffersScreen({ submitted }) {
@@ -11,6 +12,7 @@ export default function BuyerOffersScreen({ submitted }) {
   const [kind, setKind] = useState(submitted || 'offer');
   const [rows, setRows] = useState(null);
   const [viewings, setViewings] = useState([]);
+  const [subBadges, setSubBadges] = useState({});
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const sequence = useRef({ version: 0 });
@@ -19,13 +21,15 @@ export default function BuyerOffersScreen({ submitted }) {
     const ticket = ++sequence.current.version;
     setRefreshing(true);
     try {
-      const [data, myViewings] = await Promise.all([
+      const [data, myViewings, badges] = await Promise.all([
         getBuyerSubmissions(),
         getViewingsForRole('buyer', buyerId),
+        getSubTabBadges(profile),
       ]);
       if (ticket === sequence.current.version) {
         setRows(data);
         setViewings(myViewings);
+        setSubBadges(badges || {});
         setError('');
       }
     } catch (failure) {
@@ -35,7 +39,7 @@ export default function BuyerOffersScreen({ submitted }) {
     } finally {
       if (ticket === sequence.current.version) setRefreshing(false);
     }
-  }, [buyerId]);
+  }, [buyerId, profile]);
 
   useEffect(() => {
     const current = sequence.current;
@@ -66,18 +70,33 @@ export default function BuyerOffersScreen({ submitted }) {
       </View>
       <View style={s.row}>
         {[
-          { id: 'offer', label: 'Offers' },
-          { id: 'rental', label: 'Applications' },
-          { id: 'viewing', label: 'Viewings' },
+          { id: 'offer', label: 'Offers', count: subBadges.offer || 0 },
+          { id: 'rental', label: 'Applications', count: subBadges.rental || 0 },
+          { id: 'viewing', label: 'Viewings', count: subBadges.viewing || 0 },
         ].map((tabItem) => (
           <Pressable
             key={tabItem.id}
             accessibilityRole="tab"
             accessibilityState={{ selected: kind === tabItem.id }}
-            onPress={() => setKind(tabItem.id)}
+            onPress={() => {
+              setKind(tabItem.id);
+              if (buyerId) {
+                markTabSeen(buyerId, `sub_${tabItem.id}`);
+                setSubBadges((prev) => ({ ...prev, [tabItem.id]: 0 }));
+              }
+            }}
             style={[s.button, { flex: 1 }, kind === tabItem.id && s.primary]}
           >
-            <Text style={kind === tabItem.id ? s.primaryText : s.text}>{tabItem.label}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Text style={kind === tabItem.id ? s.primaryText : s.text}>{tabItem.label}</Text>
+              {tabItem.count > 0 && (
+                <View style={{ minWidth: 16, height: 16, borderRadius: 8, backgroundColor: kind === tabItem.id ? '#292424' : '#B6331E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700', lineHeight: 12 }}>
+                    {tabItem.count > 9 ? '9+' : tabItem.count}
+                  </Text>
+                </View>
+              )}
+            </View>
           </Pressable>
         ))}
       </View>

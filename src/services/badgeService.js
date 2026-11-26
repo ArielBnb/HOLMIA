@@ -132,3 +132,71 @@ export async function getTabBadges(profile) {
 
   return badges;
 }
+
+/**
+ * Returns unread / pending counts per sub-category pill for Received
+ * (Agent/Seller: offers, rentals, viewings, enquiries) and My activity
+ * (Buyer: offer, rental, viewing).
+ */
+export async function getSubTabBadges(profile) {
+  const sub = {};
+  if (!profile?.id || !isSupabaseConfigured) return sub;
+
+  const userId = profile.id;
+  const role = profile.role || 'buyer';
+  const seen = await readSeenMap(userId);
+
+  if (role === 'agent' || role === 'seller') {
+    const [offers, rentals, enquiries, viewings] = await Promise.all([
+      getOffersReceived().catch(() => []),
+      getRentalApplicationsReceived().catch(() => []),
+      getEnquiriesReceived().catch(() => []),
+      getViewingsForRole(role, userId).catch(() => []),
+    ]);
+
+    const pendingOffers = (offers ?? []).filter((o) => o.status === 'pending').length;
+    const pendingRentals = (rentals ?? []).filter((r) => r.status === 'pending').length;
+    const pendingEnquiries = (enquiries ?? []).filter((e) => !isViewingEnquiry(e) && !e.reply).length;
+    const pendingViewings = (viewings ?? []).filter(
+      (v) => v.status === 'pending' && (role === 'agent' || !v.has_agent)
+    ).length;
+
+    if (pendingOffers > 0) sub.offers = pendingOffers;
+    if (pendingRentals > 0) sub.rentals = pendingRentals;
+    if (pendingViewings > 0) sub.viewings = pendingViewings;
+    if (pendingEnquiries > 0) sub.enquiries = pendingEnquiries;
+    return sub;
+  }
+
+  if (role === 'buyer') {
+    const [submissions, viewings] = await Promise.all([
+      getBuyerSubmissions().catch(() => []),
+      getViewingsForRole('buyer', userId).catch(() => []),
+    ]);
+
+    const decidedOffers = (submissions ?? []).filter(
+      (s) =>
+        s.kind === 'offer' &&
+        (s.status === 'accepted' || s.status === 'rejected') &&
+        isNewer(s.decided_at || s.updated_at || s.created_at, seen.sub_offer)
+    ).length;
+    const decidedRentals = (submissions ?? []).filter(
+      (s) =>
+        s.kind === 'rental' &&
+        (s.status === 'accepted' || s.status === 'rejected') &&
+        isNewer(s.decided_at || s.updated_at || s.created_at, seen.sub_rental)
+    ).length;
+    const decidedViewings = (viewings ?? []).filter(
+      (v) =>
+        (v.status === 'confirmed' || v.status === 'declined') &&
+        isNewer(v.decided_at || v.created_at, seen.sub_viewing)
+    ).length;
+
+    if (decidedOffers > 0) sub.offer = decidedOffers;
+    if (decidedRentals > 0) sub.rental = decidedRentals;
+    if (decidedViewings > 0) sub.viewing = decidedViewings;
+    return sub;
+  }
+
+  return sub;
+}
