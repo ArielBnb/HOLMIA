@@ -23,14 +23,14 @@ export const REPRESENTATIONS = [
   { value: 'agent', label: 'With an agent' },
 ];
 
-// Simulated photos: stable placeholder URLs, no upload or storage bucket needed.
+// Curated HD UK real-estate photography: stable https:// URLs satisfying DB constraints.
 export const SIMULATED_IMAGES = [
-  { id: 'living-room', label: 'Living room', url: 'https://picsum.photos/seed/holmia-living-room/800/600' },
-  { id: 'kitchen', label: 'Kitchen', url: 'https://picsum.photos/seed/holmia-kitchen/800/600' },
-  { id: 'bedroom', label: 'Bedroom', url: 'https://picsum.photos/seed/holmia-bedroom/800/600' },
-  { id: 'facade', label: 'Facade', url: 'https://picsum.photos/seed/holmia-facade/800/600' },
-  { id: 'garden', label: 'Garden', url: 'https://picsum.photos/seed/holmia-garden/800/600' },
-  { id: 'view', label: 'View', url: 'https://picsum.photos/seed/holmia-view/800/600' },
+  { id: 'living-room', label: 'London Flat', url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80' },
+  { id: 'kitchen', label: 'Family House', url: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=900&q=80' },
+  { id: 'bedroom', label: 'Modern Studio', url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80' },
+  { id: 'facade', label: 'Loft', url: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=80' },
+  { id: 'garden', label: 'Garden Home', url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=900&q=80' },
+  { id: 'view', label: 'Terrace Flat', url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80' },
 ];
 
 export const LIMITS = {

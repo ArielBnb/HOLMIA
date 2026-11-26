@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -12,6 +14,7 @@ import {
 } from 'react-native';
 import { updateProperty, createProperty } from '../services/propertyService';
 import { contactAgentForTerms } from '../services/chatService';
+import { CURATED_PROPERTY_PHOTOS, uploadPropertyPhoto } from '../services/imageService';
 import { getSupabase } from '../config/supabase';
 
 const MODERATION_PROPERTY_TYPES = [
@@ -52,6 +55,8 @@ export default function AgentModerationScreen({
   const [propertyType, setPropertyType] = useState(
     String(prop.property_type || 'flat').toLowerCase()
   );
+  const [imageUrl, setImageUrl] = useState(prop.image_url || '');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [status, setStatus] = useState(prop.status || 'draft');
   const [agentModel, setAgentModel] = useState(prop.agent_id ? 'agent' : 'none'); // 'none' (direct) | 'agent'
   const [feedback, setFeedback] = useState('');
@@ -125,6 +130,11 @@ export default function AgentModerationScreen({
       setFeedback('❌ No agent account is available. Choose "Direct (No Agent)" or try again later.');
       return;
     }
+    const trimmedImage = imageUrl.trim();
+    if (trimmedImage && !/^https:\/\/\S+$/.test(trimmedImage)) {
+      setFeedback('❌ Image URL must start with https:// and contain no spaces.');
+      return;
+    }
     setBusy(true);
     setFeedback(pending);
     const changes = {
@@ -134,6 +144,7 @@ export default function AgentModerationScreen({
       location: location.trim(),
       listing_type: listingType,
       property_type: String(propertyType || 'flat').toLowerCase(),
+      image_url: trimmedImage || null,
       agent_id: agentId,
     };
     if (targetStatus !== prop.status) changes.status = targetStatus;
@@ -331,19 +342,70 @@ export default function AgentModerationScreen({
             </View>
           )}
 
-          {/* Photo Boxes matching Wireframe 11 */}
-          <View style={styles.photoRow}>
-            {userRole === 'seller' && (
-              <View style={[styles.photoBox, styles.addPhotoBox]}>
-                <Text style={styles.addPhotoText}>+ Add</Text>
-              </View>
-            )}
-            <View style={styles.photoBox}>
-              <Text style={styles.photoText}>img</Text>
-            </View>
-            <View style={styles.photoBox}>
-              <Text style={styles.photoText}>img</Text>
-            </View>
+          {/* Photo Picker & Supabase Storage Upload */}
+          <View style={styles.formGroup}>
+            <Text style={styles.representationTitle}>Cover photo</Text>
+            {imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={{ width: '100%', height: 150, borderRadius: 8, marginBottom: 8, backgroundColor: 'rgba(182,51,30,0.1)' }}
+                resizeMode="cover"
+              />
+            ) : null}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isTerminal || uploadingPhoto}
+                style={[styles.photoBox, styles.addPhotoBox]}
+                onPress={async () => {
+                  setUploadingPhoto(true);
+                  setFeedback('');
+                  try {
+                    const url = await uploadPropertyPhoto();
+                    if (url) {
+                      setImageUrl(url);
+                      setFeedback('✅ Photo uploaded to Supabase Storage.');
+                    }
+                  } catch (err) {
+                    setFeedback(`❌ ${err.message}`);
+                  } finally {
+                    setUploadingPhoto(false);
+                  }
+                }}
+              >
+                {uploadingPhoto ? (
+                  <ActivityIndicator color="#B6331E" />
+                ) : (
+                  <Text style={styles.addPhotoText}>+ Upload</Text>
+                )}
+              </Pressable>
+              {CURATED_PROPERTY_PHOTOS.map((photo) => {
+                const selected = imageUrl === photo.url;
+                return (
+                  <Pressable
+                    key={photo.id}
+                    accessibilityRole="button"
+                    disabled={isTerminal}
+                    onPress={() => setImageUrl(photo.url)}
+                    style={[
+                      styles.photoBox,
+                      { overflow: 'hidden', borderWidth: selected ? 2 : 1, borderColor: selected ? '#B6331E' : '#292424' },
+                    ]}
+                  >
+                    <Image source={{ uri: photo.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              placeholder="Or paste an https:// photo URL"
+              placeholderTextColor="#888"
+              value={imageUrl}
+              onChangeText={setImageUrl}
+              autoCapitalize="none"
+              editable={!isTerminal}
+            />
           </View>
 
           <Text style={styles.noteText}>note: some fields locked when Under Offer</Text>

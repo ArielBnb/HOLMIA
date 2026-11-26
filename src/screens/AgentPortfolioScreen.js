@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -128,7 +129,7 @@ export default function AgentPortfolioScreen({
 
   const formatPrice = (item) => {
     const val = Number(item.price || 0).toLocaleString('en-GB');
-    return item.listing_type === 'rent' ? `£${val}/mo` : `£${val}`;
+    return item.listing_type === 'rent' ? `£${val} / month` : `£${val}`;
   };
 
   return (
@@ -213,6 +214,19 @@ export default function AgentPortfolioScreen({
                     : onEditProperty?.(item)
                 }
               >
+                {item.image_url ? (
+                  <Image
+                    source={{ uri: item.image_url }}
+                    style={{
+                      width: '100%',
+                      height: 110,
+                      borderRadius: 6,
+                      marginBottom: 8,
+                      backgroundColor: 'rgba(182, 51, 30, 0.1)',
+                    }}
+                    resizeMode="cover"
+                  />
+                ) : null}
                 <View style={styles.cardHeader}>
                   <Text style={styles.propertyName} numberOfLines={1}>
                     {item.title}

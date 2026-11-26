@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -223,6 +224,18 @@ export default function PropertyLifecycleScreen({
 
             {selectedProp && (
               <>
+                {selectedProp.image_url ? (
+                  <Image
+                    source={{ uri: selectedProp.image_url }}
+                    style={{
+                      width: '100%',
+                      height: 150,
+                      borderRadius: 8,
+                      backgroundColor: 'rgba(182, 51, 30, 0.1)',
+                    }}
+                    resizeMode="cover"
+                  />
+                ) : null}
                 {/* Current status row matching Figma 15 */}
                 <View style={styles.statusRow}>
                   <Text style={styles.rowText}>Current status</Text>

@@ -37,10 +37,14 @@ import {
 } from '../services/propertyEditRules';
 import { listAgents } from '../services/messageService';
 import PropertyMessages, { useConversations } from '../components/PropertyMessages';
+import { uploadPropertyPhoto } from '../services/imageService';
 import { colors } from '../styles/theme';
 
-const border = '#DBE1DC';
-const danger = '#B3261E';
+const border = '#292424';
+const danger = '#B6331E';
+const ink = '#292424';
+const accent = '#B6331E';
+const bgIvory = '#F6F5F0';
 
 function describeError(failure) {
   const message = failure?.message || '';
@@ -213,6 +217,8 @@ export default function SellerPropertyFormScreen() {
   const [notice, setNotice] = useState(null);
   const [listings, setListings] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [listError, setListError] = useState('');
@@ -318,6 +324,17 @@ export default function SellerPropertyFormScreen() {
         const row = await updateOwnProperty(editing.id, changes);
         setNotice({ title: 'Changes saved', text: `"${row.title}" was updated (${Object.keys(changes).length} field${Object.keys(changes).length > 1 ? 's' : ''}).` });
       } else {
+        const normTitle = values.title.trim().toLowerCase();
+        const normLoc = values.location.trim().toLowerCase();
+        const duplicate = listings.find(
+          (p) =>
+            String(p.title || '').trim().toLowerCase() === normTitle &&
+            String(p.location || '').trim().toLowerCase() === normLoc
+        );
+        if (duplicate) {
+          setSaveError(`You already have a listing named "${duplicate.title}" in ${duplicate.location}. Edit it instead of creating a duplicate.`);
+          return;
+        }
         const row = await createProperty(buildPropertyPayload(values, profile.id));
         setNotice({ title: 'Draft saved', text: `"${row.title}" was stored in Supabase with status ${row.status.toUpperCase()}.`, id: row.id });
       }
@@ -526,7 +543,41 @@ export default function SellerPropertyFormScreen() {
                   />
                 </Field>
 
-                <Field label="Cover photo (simulated)" error={errors.imageUrl} hint="Placeholder images for the demo. Photo upload comes later.">
+                <Field
+                  label="Cover photo"
+                  error={errors.imageUrl || uploadError}
+                  hint="Upload a photo to Supabase Storage, pick a gallery photo, or paste an https:// URL."
+                >
+                  {values.imageUrl ? (
+                    <Image
+                      source={{ uri: values.imageUrl }}
+                      style={{ width: '100%', height: 150, borderRadius: 8, marginBottom: 8, backgroundColor: 'rgba(182, 51, 30, 0.1)' }}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={uploadingPhoto}
+                    style={[styles.secondaryButton, { marginBottom: 10 }]}
+                    onPress={async () => {
+                      setUploadingPhoto(true);
+                      setUploadError('');
+                      try {
+                        const url = await uploadPropertyPhoto();
+                        if (url) update('imageUrl')(url);
+                      } catch (err) {
+                        setUploadError(err.message || 'Unable to upload photo.');
+                      } finally {
+                        setUploadingPhoto(false);
+                      }
+                    }}
+                  >
+                    {uploadingPhoto ? (
+                      <ActivityIndicator color={accent} />
+                    ) : (
+                      <Text style={styles.secondaryButtonText}>+ Upload photo from device</Text>
+                    )}
+                  </Pressable>
                   <View style={styles.gallery}>
                     {SIMULATED_IMAGES.map((image) => {
                       const selected = image.url === values.imageUrl;
@@ -536,7 +587,7 @@ export default function SellerPropertyFormScreen() {
                           accessibilityRole="radio"
                           accessibilityLabel={image.label}
                           accessibilityState={{ selected }}
-                          onPress={() => update('imageUrl')(image.url)}
+                          onPress={() => { setUploadError(''); update('imageUrl')(image.url); }}
                           style={[styles.thumb, selected && styles.thumbSelected]}
                         >
                           <Image source={{ uri: image.url }} style={styles.thumbImage} />
@@ -545,6 +596,13 @@ export default function SellerPropertyFormScreen() {
                       );
                     })}
                   </View>
+                  <TextInput
+                    style={[styles.input, { marginTop: 8 }]}
+                    value={values.imageUrl}
+                    onChangeText={(text) => { setUploadError(''); update('imageUrl')(text); }}
+                    placeholder="Or paste an https:// photo URL"
+                    autoCapitalize="none"
+                  />
                 </Field>
 
                 <View style={styles.statusRow}>
@@ -596,69 +654,69 @@ export default function SellerPropertyFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 20, paddingTop: 48, paddingBottom: 40, gap: 14, maxWidth: 800, width: '100%', alignSelf: 'center' },
-  brand: { fontSize: 30, fontWeight: '800', color: colors.primary, letterSpacing: 3 },
-  heading: { fontSize: 23, fontWeight: '600', color: colors.primary },
-  meta: { color: colors.secondary, fontSize: 14, lineHeight: 20 },
-  card: { backgroundColor: '#FFFFFF', borderColor: border, borderWidth: 1, borderRadius: 18, padding: 18, gap: 4 },
-  cardEditing: { borderColor: colors.primary, borderWidth: 2 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.primary, marginBottom: 6 },
+  page: { flex: 1, backgroundColor: bgIvory },
+  content: { paddingHorizontal: 32, paddingTop: 24, paddingBottom: 40, gap: 14, maxWidth: 800, width: '100%', alignSelf: 'center' },
+  brand: { fontSize: 13, fontWeight: '700', color: accent, letterSpacing: 2 },
+  heading: { fontSize: 20, fontWeight: '700', color: ink },
+  meta: { color: '#66605A', fontSize: 13, lineHeight: 19 },
+  card: { backgroundColor: bgIvory, borderColor: border, borderWidth: 1, borderRadius: 8, padding: 16, gap: 4 },
+  cardEditing: { borderColor: accent, borderWidth: 2 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: ink, marginBottom: 4 },
   field: { marginBottom: 12 },
-  label: { fontSize: 14, fontWeight: '600', color: colors.primary, marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: '#1B1B1B', backgroundColor: '#FBFBF8' },
+  label: { fontSize: 13, fontWeight: '600', color: ink, marginBottom: 6 },
+  input: { borderWidth: 1, borderColor: border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: ink, backgroundColor: bgIvory },
   inputInvalid: { borderColor: danger },
-  inputLocked: { backgroundColor: '#EEEEEE', color: '#777777' },
-  textArea: { minHeight: 110 },
-  hint: { color: colors.secondary, fontSize: 12, marginTop: 4 },
+  inputLocked: { backgroundColor: '#EAE6DF', color: '#777777' },
+  textArea: { minHeight: 100 },
+  hint: { color: '#66605A', fontSize: 12, marginTop: 4 },
   error: { color: danger, fontSize: 13, marginTop: 4 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  choice: { borderWidth: 1, borderColor: border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#FBFBF8' },
-  choiceSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  choice: { borderWidth: 1, borderColor: border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: bgIvory },
+  choiceSelected: { backgroundColor: ink, borderColor: ink },
   choiceDisabled: { opacity: 0.4 },
-  choiceText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
-  choiceTextSelected: { color: colors.background },
+  choiceText: { color: ink, fontWeight: '600', fontSize: 13 },
+  choiceTextSelected: { color: bgIvory },
   gallery: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  thumb: { width: 100, borderWidth: 2, borderColor: 'transparent', borderRadius: 12, overflow: 'hidden', backgroundColor: '#FBFBF8' },
-  thumbSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
-  thumbImage: { width: '100%', height: 70, backgroundColor: '#E7EFEA' },
-  thumbLabel: { fontSize: 12, textAlign: 'center', paddingVertical: 4, color: colors.primary, fontWeight: '600' },
+  thumb: { width: 100, borderWidth: 1, borderColor: border, borderRadius: 8, overflow: 'hidden', backgroundColor: bgIvory },
+  thumbSelected: { borderColor: accent, borderWidth: 2, backgroundColor: accent },
+  thumbImage: { width: '100%', height: 68, backgroundColor: 'rgba(182, 51, 30, 0.1)' },
+  thumbLabel: { fontSize: 11, textAlign: 'center', paddingVertical: 4, color: ink, fontWeight: '600' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 6 },
-  statusBadge: { backgroundColor: '#EEEEEE', color: '#555555', fontWeight: '700', fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
-  button: { backgroundColor: colors.primary, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 8 },
+  statusBadge: { backgroundColor: 'rgba(182, 51, 30, 0.1)', color: accent, fontWeight: '700', fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, overflow: 'hidden' },
+  button: { backgroundColor: accent, borderRadius: 8, height: 52, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.background, fontWeight: '700', fontSize: 15 },
+  buttonText: { color: bgIvory, fontWeight: '700', fontSize: 15 },
   cancelEdit: { alignItems: 'center', paddingVertical: 10 },
-  ownerBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E7EFEA', borderRadius: 12, padding: 12 },
+  ownerBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(182, 51, 30, 0.1)', borderRadius: 8, padding: 12 },
   ownerInfo: { flex: 1 },
-  ownerLabel: { fontSize: 12, color: colors.secondary, fontWeight: '600', textTransform: 'uppercase' },
-  ownerName: { fontSize: 15, color: colors.primary, fontWeight: '700' },
+  ownerLabel: { fontSize: 11, color: '#66605A', fontWeight: '600', textTransform: 'uppercase' },
+  ownerName: { fontSize: 14, color: ink, fontWeight: '700' },
   linkButton: { paddingHorizontal: 10, paddingVertical: 6 },
-  linkText: { color: colors.primary, fontWeight: '700', textDecorationLine: 'underline' },
-  success: { backgroundColor: '#E8F5E9', borderColor: '#A5D6A7', borderWidth: 1, borderRadius: 12, padding: 14 },
-  successTitle: { color: '#1B5E20', fontWeight: '700', fontSize: 16, marginBottom: 4 },
-  successText: { color: '#1B5E20' },
-  successId: { color: '#2E7D32', fontSize: 12, marginTop: 4 },
-  listing: { backgroundColor: '#FFFFFF', borderColor: border, borderWidth: 1, borderRadius: 14, overflow: 'hidden', paddingBottom: 10 },
-  listingEditing: { borderColor: colors.primary, borderWidth: 2 },
+  linkText: { color: accent, fontWeight: '700', textDecorationLine: 'underline' },
+  success: { backgroundColor: '#E8F5E9', borderColor: '#2E6B3E', borderWidth: 1, borderRadius: 8, padding: 14 },
+  successTitle: { color: '#2E6B3E', fontWeight: '700', fontSize: 15, marginBottom: 4 },
+  successText: { color: '#2E6B3E' },
+  successId: { color: '#2E6B3E', fontSize: 12, marginTop: 4 },
+  listing: { backgroundColor: bgIvory, borderColor: border, borderWidth: 1, borderRadius: 8, overflow: 'hidden', paddingBottom: 10 },
+  listingEditing: { borderColor: accent, borderWidth: 2 },
   listingRow: { flexDirection: 'row' },
-  listingImage: { width: 90, minHeight: 80, backgroundColor: '#E7EFEA' },
+  listingImage: { width: 90, minHeight: 80, backgroundColor: 'rgba(182, 51, 30, 0.1)' },
   listingBody: { flex: 1, padding: 12, gap: 2 },
-  listingTitle: { fontSize: 15, fontWeight: '600', color: colors.primary },
-  listingMeta: { fontSize: 12, color: colors.secondary },
+  listingTitle: { fontSize: 15, fontWeight: '700', color: ink },
+  listingMeta: { fontSize: 12, color: '#66605A' },
   actions: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginTop: 4 },
-  secondaryButton: { flex: 1, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
-  secondaryButtonText: { color: colors.primary, fontWeight: '700' },
-  dangerOutline: { flex: 1, borderWidth: 1, borderColor: danger, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
+  secondaryButton: { flex: 1, borderWidth: 1, borderColor: border, borderRadius: 8, paddingVertical: 9, alignItems: 'center', backgroundColor: bgIvory },
+  secondaryButtonText: { color: ink, fontWeight: '700' },
+  dangerOutline: { flex: 1, borderWidth: 1, borderColor: danger, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
   dangerOutlineText: { color: danger, fontWeight: '700' },
-  dangerButton: { flex: 1, backgroundColor: danger, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
+  dangerButton: { flex: 1, backgroundColor: danger, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
   dangerButtonText: { color: '#FFFFFF', fontWeight: '700' },
-  confirmBox: { backgroundColor: '#FDECEA', marginHorizontal: 12, marginTop: 4, borderRadius: 10, paddingVertical: 10, gap: 8 },
+  confirmBox: { backgroundColor: 'rgba(182, 51, 30, 0.1)', marginHorizontal: 12, marginTop: 4, borderRadius: 8, paddingVertical: 10, gap: 8 },
   confirmText: { color: danger, fontWeight: '600', paddingHorizontal: 12 },
-  messageButton: { borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingVertical: 9, alignItems: 'center', marginHorizontal: 12, marginTop: 8 },
-  segment: { flexDirection: 'row', backgroundColor: '#E7EFEA', borderRadius: 12, padding: 4, gap: 4 },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
-  segmentItemActive: { backgroundColor: '#FFFFFF' },
-  segmentText: { color: colors.secondary, fontWeight: '600' },
-  segmentTextActive: { color: colors.primary, fontWeight: '700' },
+  messageButton: { borderWidth: 1, borderColor: border, borderRadius: 8, paddingVertical: 9, alignItems: 'center', marginHorizontal: 12, marginTop: 8 },
+  segment: { flexDirection: 'row', backgroundColor: 'rgba(182, 51, 30, 0.1)', borderRadius: 8, padding: 4, gap: 4 },
+  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 6 },
+  segmentItemActive: { backgroundColor: bgIvory },
+  segmentText: { color: '#66605A', fontWeight: '600' },
+  segmentTextActive: { color: ink, fontWeight: '700' },
 });

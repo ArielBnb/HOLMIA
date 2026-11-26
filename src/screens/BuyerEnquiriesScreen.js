@@ -7,10 +7,9 @@ import { getProperties } from '../services/propertyService';
 import { getMyEnquiries, sendEnquiry } from '../services/enquiryService';
 import { isViewingEnquiry } from '../services/viewingService';
 import { ENQUIRY_MAX, ENQUIRY_STATUS, enquiryStatus } from '../services/enquiryRules';
-import { colors } from '../styles/theme';
 
-const border = '#DBE1DC';
-const danger = '#B3261E';
+const border = '#292424';
+const danger = '#B6331E';
 const when = (iso) => new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 export default function BuyerEnquiriesScreen() {
@@ -128,7 +127,7 @@ export default function BuyerEnquiriesScreen() {
             <Text style={styles.link}>↻ Refresh</Text>
           </Pressable>
         </View>
-        {enquiries === null && <ActivityIndicator color={colors.primary} />}
+        {enquiries === null && <ActivityIndicator color="#B6331E" />}
         {enquiries?.length === 0 && <Text style={styles.meta}>No enquiries yet.</Text>}
         {enquiries?.map((e) => {
           const s = ENQUIRY_STATUS[enquiryStatus(e)];
@@ -159,30 +158,30 @@ export default function BuyerEnquiriesScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { padding: 20, paddingTop: 32, paddingBottom: 40, gap: 12, maxWidth: 800, width: '100%', alignSelf: 'center' },
-  heading: { fontSize: 24, fontWeight: '700', color: colors.primary },
-  sectionTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.primary },
-  meta: { color: colors.secondary, fontSize: 13, lineHeight: 19 },
-  label: { fontSize: 14, fontWeight: '600', color: colors.primary, marginTop: 4 },
-  link: { color: colors.primary, fontWeight: '700' },
-  card: { borderWidth: 1, borderColor: border, borderRadius: 16, padding: 14, gap: 6 },
+  page: { flex: 1, backgroundColor: '#F6F5F0' },
+  content: { paddingHorizontal: 32, paddingTop: 24, paddingBottom: 40, gap: 12, maxWidth: 800, width: '100%', alignSelf: 'center' },
+  heading: { fontSize: 20, fontWeight: '700', color: '#292424' },
+  sectionTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: '#292424' },
+  meta: { color: '#66605A', fontSize: 13, lineHeight: 19 },
+  label: { fontSize: 13, fontWeight: '600', color: '#292424', marginTop: 4 },
+  link: { color: '#B6331E', fontWeight: '700' },
+  card: { borderWidth: 1, borderColor: border, borderRadius: 8, padding: 14, gap: 6, backgroundColor: '#F6F5F0' },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.primary },
-  badge: { fontSize: 11, fontWeight: '700', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
+  title: { flex: 1, fontSize: 15, fontWeight: '700', color: '#292424' },
+  badge: { fontSize: 11, fontWeight: '700', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, overflow: 'hidden' },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  choice: { borderWidth: 1, borderColor: border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, maxWidth: '100%' },
-  choiceActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  choiceText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
-  choiceTextActive: { color: '#FFFFFF' },
-  input: { borderWidth: 1, borderColor: border, borderRadius: 10, padding: 10, minHeight: 80, fontSize: 15, backgroundColor: '#FBFBF8', textAlignVertical: 'top' },
-  message: { fontSize: 15, color: '#1B1B1B' },
-  replyBox: { backgroundColor: '#E8F5E9', borderRadius: 10, padding: 10, gap: 4 },
-  replyLabel: { fontSize: 12, color: '#1B5E20', fontWeight: '700' },
-  replyText: { fontSize: 14, color: '#1B1B1B' },
-  primary: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
-  primaryText: { color: '#FFFFFF', fontWeight: '700' },
+  choice: { borderWidth: 1, borderColor: border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, maxWidth: '100%' },
+  choiceActive: { backgroundColor: '#292424', borderColor: '#292424' },
+  choiceText: { color: '#292424', fontWeight: '600', fontSize: 13 },
+  choiceTextActive: { color: '#F6F5F0' },
+  input: { borderWidth: 1, borderColor: border, borderRadius: 8, padding: 10, minHeight: 80, fontSize: 14, backgroundColor: '#F6F5F0', color: '#292424', textAlignVertical: 'top' },
+  message: { fontSize: 14, color: '#292424' },
+  replyBox: { backgroundColor: 'rgba(182, 51, 30, 0.1)', borderRadius: 8, padding: 10, gap: 4 },
+  replyLabel: { fontSize: 12, color: '#B6331E', fontWeight: '700' },
+  replyText: { fontSize: 14, color: '#292424' },
+  primary: { backgroundColor: '#B6331E', borderRadius: 8, height: 48, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
+  primaryText: { color: '#F6F5F0', fontWeight: '700' },
   disabled: { opacity: 0.5 },
   error: { color: danger, fontSize: 13 },
-  success: { color: '#1B5E20', fontSize: 13 },
+  success: { color: '#2E6B3E', fontSize: 13 },
 });
