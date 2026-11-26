@@ -9,36 +9,39 @@
 
 begin;
 
--- 1. Harden public.accept_offer()
-create or replace function public.accept_offer(p_offer uuid) returns uuid
+-- 1. Harden public.accept_offer() (keeps exact jsonb return type from 20261121120000)
+create or replace function public.accept_offer(p_offer uuid) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
-  o public.offers;
-  p public.properties;
+  v_property uuid; p public.properties; o public.offers; rejected int;
 begin
-  select * into o from public.offers where id = p_offer for update;
-  if not found then
+  select property_id into v_property from public.offers where id = p_offer;
+  if v_property is null then
     raise exception 'Offer not found' using errcode = 'P0002';
   end if;
-  select * into p from public.properties where id = o.property_id for update;
-  if not private.can_decide_offer(p) then
-    raise exception 'Only the assigned agent or the direct seller can decide offers' using errcode = '42501';
+  select * into p from public.properties where id = v_property for update;
+  if not private.is_offer_decider(v_property) then
+    raise exception 'Only the owner or the assigned agent can decide on this offer' using errcode = '42501';
+  end if;
+  select * into o from public.offers where id = p_offer for update;
+  if o.status <> 'pending' then
+    raise exception 'This offer is already %', o.status using errcode = '23514';
   end if;
   if p.listing_type <> 'sale' then
-    raise exception 'Purchase offers can only be accepted on sale listings' using errcode = '22023';
+    raise exception 'Purchase offers can only be accepted on sale listings' using errcode = '23514';
   end if;
   if p.status <> 'active' then
-    raise exception 'Listing is not open to offers (status: %)', p.status using errcode = '22023';
-  end if;
-  if o.status <> 'pending' then
-    raise exception 'Offer has already been decided (status: %)', o.status using errcode = '22023';
+    raise exception 'The listing is % - no other offer can be accepted', p.status using errcode = '23514';
   end if;
 
-  update public.offers set status = 'accepted', decided_by = auth.uid(), decided_at = now() where id = p_offer;
-  update public.offers set status = 'rejected', decided_by = auth.uid(), decided_at = now()
-    where property_id = o.property_id and id <> p_offer and status = 'pending';
-  update public.properties set status = 'under_offer' where id = o.property_id;
-  return p_offer;
+  update public.offers set status = 'accepted', decided_by = auth.uid(), decided_at = now(), updated_at = now()
+  where id = p_offer;
+  update public.offers set status = 'rejected', decided_by = auth.uid(), decided_at = now(), updated_at = now()
+  where property_id = v_property and id <> p_offer and status = 'pending';
+  get diagnostics rejected = row_count;
+  update public.properties set status = 'under_offer' where id = v_property;
+
+  return jsonb_build_object('accepted_offer', p_offer, 'rejected_count', rejected, 'property_status', 'under_offer');
 end $$;
 
 -- 2. Defense-in-depth execute grant on public.buyer_submissions()
