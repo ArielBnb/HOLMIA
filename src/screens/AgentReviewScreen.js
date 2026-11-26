@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { getProperties, updateProperty } from '../services/propertyService';
 
-export default function AgentReviewScreen({ currentSession, onEditProperty }) {
+export default function AgentReviewScreen({ currentSession, onEditProperty, onMessageSeller }) {
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,6 +151,15 @@ export default function AgentReviewScreen({ currentSession, onEditProperty }) {
                   <Text style={styles.rejectBtnText}>Reject</Text>
                 </Pressable>
               </View>
+              {onMessageSeller && item.seller_id && (
+                <Pressable
+                  accessibilityRole="button"
+                  style={[styles.rejectBtn, { marginTop: 8 }]}
+                  onPress={() => onMessageSeller(item)}
+                >
+                  <Text style={styles.rejectBtnText}>Message Seller</Text>
+                </Pressable>
+              )}
             </View>
           ))
         )}

@@ -35,6 +35,7 @@ export default function PropertyLifecycleScreen({
   onEditProperty,
   onBack,
   onOpenChat,
+  onMessageCounterpart,
 }) {
   const role = currentSession?.role;
   const [viewMode, setViewMode] = useState('manage'); // 'manage' | 'offers'
@@ -320,6 +321,20 @@ export default function PropertyLifecycleScreen({
                     <Text style={styles.secondaryBtnText}>See offers</Text>
                   </Pressable>
                 </View>
+
+                {onMessageCounterpart &&
+                  ((role === 'agent' && selectedProp.seller_id) ||
+                    (role === 'seller' && selectedProp.agent_id)) && (
+                    <Pressable
+                      accessibilityRole="button"
+                      style={[styles.secondaryBtn, { width: '100%' }]}
+                      onPress={() => onMessageCounterpart(selectedProp)}
+                    >
+                      <Text style={styles.secondaryBtnText}>
+                        {role === 'agent' ? 'Message Seller' : 'Message Agent'}
+                      </Text>
+                    </Pressable>
+                  )}
 
                 <Text style={styles.noteText}>{statusGuidance(selectedProp, role) || 'note: only valid status changes (no Sold → Active)'}</Text>
 

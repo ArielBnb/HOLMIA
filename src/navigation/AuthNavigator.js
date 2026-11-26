@@ -40,6 +40,7 @@ function MainHome({ profile }) {
   const [editingProperty, setEditingProperty] = useState(null);
   const [viewingDetailsProperty, setViewingDetailsProperty] = useState(null);
   const [chatConvId, setChatConvId] = useState(null);
+  const [directThread, setDirectThread] = useState(null);
   const [activeNotification, setActiveNotification] = useState(null);
   const [tabBadges, setTabBadges] = useState({});
 
@@ -123,6 +124,22 @@ function MainHome({ profile }) {
     setActiveTab(userRole === 'agent' ? 'enquiries' : 'messages');
   };
 
+  const handleMessageCounterpart = (prop) => {
+    if (!prop?.id) return;
+    const otherId = userRole === 'agent' ? prop.seller_id : prop.agent_id;
+    if (!otherId) return;
+    setEditingProperty(null);
+    setViewingDetailsProperty(null);
+    setDirectThread({
+      propertyId: prop.id,
+      propertyTitle: prop.title || 'Property',
+      otherId,
+      otherName: userRole === 'agent' ? prop.seller_name || 'Seller' : 'Agent',
+      otherRole: userRole === 'agent' ? 'seller' : 'agent',
+    });
+    setActiveTab(userRole === 'agent' ? 'offers' : 'received');
+  };
+
   // Wireframe Tabs strictly mapped by Role:
   // - Agent: Wireframes 13-17: Stats | Properties | Review | Enquiries | Profile
   // - Seller: Wireframes 10-12: My listings | Add | Offers | Messages | Profile
@@ -186,6 +203,7 @@ function MainHome({ profile }) {
             }}
             onBack={() => setViewingDetailsProperty(null)}
             onOpenChat={handleOpenChat}
+            onMessageCounterpart={handleMessageCounterpart}
           />
         ) : (
           <>
@@ -213,10 +231,18 @@ function MainHome({ profile }) {
                     currentSession={profile}
                     onEditProperty={handleEditProperty}
                     onOpenChat={handleOpenChat}
+                    onMessageSeller={handleMessageCounterpart}
                   />
                 )}
 
-                {activeTab === 'offers' && <OffersReceivedScreen currentSession={profile} />}
+                {activeTab === 'offers' && (
+                  <OffersReceivedScreen
+                    key={directThread ? `thread-${directThread.propertyId}` : 'offers-default'}
+                    currentSession={profile}
+                    initialThread={directThread}
+                    onClearInitialThread={() => setDirectThread(null)}
+                  />
+                )}
 
                 {/* Wireframe 17: Enquiries & Supabase Realtime Communication */}
                 {activeTab === 'enquiries' && (
@@ -253,7 +279,14 @@ function MainHome({ profile }) {
                   <SellerPropertyFormScreen />
                 )}
 
-                {activeTab === 'received' && userRole === 'seller' && <OffersReceivedScreen currentSession={profile} />}
+                {activeTab === 'received' && userRole === 'seller' && (
+                  <OffersReceivedScreen
+                    key={directThread ? `thread-${directThread.propertyId}` : 'received-default'}
+                    currentSession={profile}
+                    initialThread={directThread}
+                    onClearInitialThread={() => setDirectThread(null)}
+                  />
+                )}
 
                 {activeTab === 'enquiries' && userRole === 'buyer' && <BuyerEnquiriesScreen />}
 

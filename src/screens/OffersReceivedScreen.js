@@ -37,12 +37,12 @@ function Badge({ text, bg, fg }) {
   return <Text style={[styles.badge, { backgroundColor: bg, color: fg }]}>{text}</Text>;
 }
 
-export default function OffersReceivedScreen({ currentSession }) {
+export default function OffersReceivedScreen({ currentSession, initialThread, onClearInitialThread }) {
   const role = currentSession?.role;
-  const [section, setSection] = useState('offers'); // 'offers' | 'rentals' | 'enquiries' | 'messages'
+  const [section, setSection] = useState(initialThread ? 'messages' : 'offers'); // 'offers' | 'rentals' | 'viewings' | 'enquiries' | 'messages'
   // Private property messages (Seller <-> Agent, Agent <-> Buyer, direct Seller <-> Buyer).
   const inbox = useConversations(role === 'seller' || role === 'agent');
-  const [thread, setThread] = useState(null);
+  const [thread, setThread] = useState(initialThread || null);
   const [groups, setGroups] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -177,7 +177,7 @@ export default function OffersReceivedScreen({ currentSession }) {
             onRefresh={inbox.refresh}
             active={thread}
             onOpen={setThread}
-            onClose={() => { setThread(null); inbox.refresh(); }}
+            onClose={() => { setThread(null); onClearInitialThread?.(); inbox.refresh(); }}
           />
         )}
 
