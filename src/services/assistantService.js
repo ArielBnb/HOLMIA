@@ -44,8 +44,11 @@ export async function askAssistant(messages) {
     } catch {
       // ignore unreadable body
     }
-    if (!message && /not found|404/i.test(error.message || '')) {
-      message = 'The assistant is not deployed yet (Edge Function holmia-assistant).';
+    // Function missing (404) or unreachable: on the web a missing function also
+    // surfaces as a fetch failure ("Failed to send a request to the Edge Function").
+    if (!message && (error.context?.status === 404 || error.name === 'FunctionsFetchError'
+      || /not found|404|failed to send/i.test(error.message || ''))) {
+      message = 'The assistant is not deployed yet. Deploy the Supabase Edge Function "holmia-assistant" (see README › Assistant IA).';
     }
     throw new Error(message || error.message || 'The assistant could not answer.');
   }
