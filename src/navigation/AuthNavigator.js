@@ -28,6 +28,7 @@ import SellerPropertyFormScreen from '../screens/SellerPropertyFormScreen';
 import OffersReceivedScreen from '../screens/OffersReceivedScreen';
 import BuyerEnquiriesScreen from '../screens/BuyerEnquiriesScreen';
 import BuyerNavigator from './BuyerNavigator';
+import AssistantChat from '../components/AssistantChat';
 import { authStyles as s } from '../styles/authTheme';
 
 function MainHome({ profile }) {
@@ -98,12 +99,30 @@ function MainHome({ profile }) {
       if (notif.targetTab === 'buyer_offers' && userRole === 'buyer') {
         setBuyerTab('Offers');
         setActiveTab('listings');
+      } else if (notif.targetTab === 'buyer_favourites' && userRole === 'buyer') {
+        setBuyerTab('Favourites');
+        setActiveTab('listings');
       } else if (notif.targetTab) {
         setActiveTab(notif.targetTab);
       }
     },
     [userRole]
   );
+
+  // A listing card tapped in the AI assistant: Buyer -> property details,
+  // Seller / Agent -> the listing's status and history screen.
+  const [buyerOpenRequest, setBuyerOpenRequest] = useState(null);
+  const handleAssistantListing = (listing) => {
+    if (!listing?.id) return;
+    if (userRole === 'buyer') {
+      setBuyerTab('Browse');
+      setActiveTab('listings');
+      setBuyerOpenRequest({ id: listing.id, at: Date.now() });
+    } else {
+      setEditingProperty(null);
+      setViewingDetailsProperty(listing);
+    }
+  };
 
   const handleEditProperty = (prop) => {
     setEditingProperty(prop);
@@ -262,6 +281,7 @@ function MainHome({ profile }) {
                 {activeTab === 'listings' && userRole === 'buyer' && (
                   <BuyerNavigator
                     tab={buyerTab} onTab={selectBuyerTab} tabBadges={tabBadges}
+                    openRequest={buyerOpenRequest}
                   />
                 )}
                 {activeTab === 'listings' && userRole === 'seller' && (
@@ -420,6 +440,10 @@ function MainHome({ profile }) {
           );
         })}
       </View>}
+
+      {/* AI assistant for every role (Supabase Edge Function holmia-assistant).
+          Rendered last so it stays above the tab content on every platform. */}
+      <AssistantChat profile={profile} onOpenListing={handleAssistantListing} />
     </SafeAreaView>
   );
 }

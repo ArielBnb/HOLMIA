@@ -12,7 +12,7 @@ import { emptyFilters } from '../services/buyerFilters';
 import { getFavourites, setFavourite } from '../services/favouriteService';
 import { buyerStyles as s, buyerColors as c } from '../styles/buyerTheme';
 
-export default function BuyerNavigator({ tab, onTab, tabBadges = {} }) {
+export default function BuyerNavigator({ tab, onTab, tabBadges = {}, openRequest = null }) {
   const [page, setPage] = useState(null);
   const [propertyId, setPropertyId] = useState(null);
   const [filters, setFilters] = useState(emptyFilters);
@@ -74,6 +74,19 @@ export default function BuyerNavigator({ tab, onTab, tabBadges = {} }) {
     setPropertyId(id);
     setPage('details');
   }
+
+  // Opened from outside (e.g. a listing recommended by the HOLMIA assistant).
+  useEffect(() => {
+    if (!openRequest?.id) return undefined;
+    const timer = setTimeout(() => {
+      setEnquiry(null);
+      setViewing(null);
+      setSubmission(null);
+      setPropertyId(openRequest.id);
+      setPage('details');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [openRequest]);
 
   return (
     <View style={s.page}>
