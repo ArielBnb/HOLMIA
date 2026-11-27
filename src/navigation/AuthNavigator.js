@@ -200,8 +200,6 @@ function MainHome({ profile }) {
         onPress={handleNotificationPress}
         onDismiss={dismissNotification}
       />
-      {/* AI assistant for every role (Supabase Edge Function holmia-assistant) */}
-      <AssistantChat profile={profile} onOpenListing={handleAssistantListing} />
       {/* Screen Content */}
       <View style={styles.content}>
         {/* Detail/Moderation overlay for Agent/Seller */}
@@ -442,6 +440,10 @@ function MainHome({ profile }) {
           );
         })}
       </View>}
+
+      {/* AI assistant for every role (Supabase Edge Function holmia-assistant).
+          Rendered last so it stays above the tab content on every platform. */}
+      <AssistantChat profile={profile} onOpenListing={handleAssistantListing} />
     </SafeAreaView>
   );
 }
