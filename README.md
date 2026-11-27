@@ -203,3 +203,24 @@ Open a Pull Request into `main` for team review before merging. Never commit `no
 - **Node.js Built-in SQLite (`node:sqlite`) Documentation:** https://nodejs.org/api/sqlite.html
 - **React Native AsyncStorage Documentation:** https://react-native-async-storage.github.io/async-storage/
 - **ESLint & `eslint-config-expo` Guide:** https://docs.expo.dev/guides/using-eslint/
+
+## Assistant IA « Ask HOLMIA »
+
+Bouton flottant **✨ Ask HOLMIA** disponible pour les trois rôles (`src/components/AssistantChat.js`) :
+- **Buyer** : conseille les biens adaptés au revenu, à la ville et au besoin (achat/location), avec des cartes cliquables vers la fiche du bien ;
+- **Seller** : prix conseillé d'après le marché, comparaison des offres et candidatures, brouillons de réponses ;
+- **Agent** : priorités du jour, comparaison des offres, messages aux acheteurs et vendeurs.
+
+L'appel au modèle (Claude, `claude-opus-5-5`) se fait dans la fonction serveur `supabase/functions/holmia-assistant`. La clé Anthropic n'est **jamais** dans l'application : elle est stockée comme secret Supabase. La fonction lit les données avec le jeton de l'utilisateur connecté, donc l'assistant ne voit que ce que la RLS autorise.
+
+Mise en service (une seule fois, par un membre ayant accès au projet Supabase) :
+
+```powershell
+# 1. Créer une clé sur https://console.anthropic.com (facturation à l'usage)
+npx supabase login
+npx supabase link --project-ref icfqjwfmcwlejqpezhyi
+npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...   # ne jamais committer cette clé
+npx supabase functions deploy holmia-assistant
+```
+
+Sans ces étapes, le bouton s'affiche mais répond « The assistant is not deployed yet » ou « missing ANTHROPIC_API_KEY secret ».
