@@ -98,6 +98,9 @@ function MainHome({ profile }) {
       if (notif.targetTab === 'buyer_offers' && userRole === 'buyer') {
         setBuyerTab('Offers');
         setActiveTab('listings');
+      } else if (notif.targetTab === 'buyer_favourites' && userRole === 'buyer') {
+        setBuyerTab('Favourites');
+        setActiveTab('listings');
       } else if (notif.targetTab) {
         setActiveTab(notif.targetTab);
       }
